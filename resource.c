@@ -243,8 +243,8 @@ GetElementRes(dpy, db, window_name, element)
 
 	sprintf(res_name, "%s.geometry", window_name);
 	GetRes(db, res_name, T_string, True, &str_geom);
-	mask = XParseGeometry(str_geom, &geom->x, &geom->y, &geom->width, &geom->height);
-	if (~mask & AllValues) {
+	geom->mask = XParseGeometry(str_geom, &geom->x, &geom->y, &geom->width, &geom->height);
+	if (~geom->mask & AllValues) {
 		warnx("Incomplete geometry for %s", window_name);
 	}
 
@@ -254,13 +254,17 @@ GetElementRes(dpy, db, window_name, element)
 	if (str_gravity == NULL) {
 		/* Get the gravity from the geometry */
 		XSizeHints *size_hts = XAllocSizeHints();
+		Geometry tmp_geom;
 		if (size_hts == NULL) {
 			warnx("Unable to allocate size hints");
 			free(str_geom);
 			return;
 		}
 
-		XWMGeometry(dpy, DefaultScreen(dpy), str_geom, NULL, 0, size_hts, &geom->x, &geom->y, &geom->width, &geom->height, &geom->gravity);
+		XWMGeometry(dpy, DefaultScreen(dpy), str_geom, NULL, 0, size_hts,
+                            &tmp_geom.x, &tmp_geom.y,
+                            &tmp_geom.width, &tmp_geom.height,
+                            &geom->gravity);
 		XFree(size_hts);
 	} else {
 		/* Legacy code */
@@ -290,7 +294,8 @@ GetElementRes(dpy, db, window_name, element)
 		unsigned long valuemask = 0; /* No data in "values" */
 		unsigned int background, foreground;
 		char *font, *label;
-		int w = 3, h = 2, depth = 16;
+		int w = 3, h = 2;
+                int depth = DefaultDepth(dpy, DefaultScreen(dpy));
 
 		sprintf(res_name, "%s.label.font", window_name);
 		GetRes(db, res_name, T_string, True, &font);
