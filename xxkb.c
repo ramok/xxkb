@@ -1,3 +1,4 @@
+/* -*- tab-width: 4; -*- */
 /* xxkb  - XKB keyboard indicator/switcher */
 /* (c)  1999 - 2003 Ivan Pascal <pascal@tsu.ru>   */
 
@@ -56,7 +57,7 @@ int main (int argc, char ** argv)
 		case XkbOD_BadServerVersion :
 			printf("xxkb was compiled with XKB version %d.%02d\n",
 			       XkbMajorVersion,XkbMinorVersion);
-			printf("But %s uses incompatibl eversion %d.%02d\n",
+			printf("But %s uses incompatible version %d.%02d\n",
 			       reason_rtrn == XkbOD_BadLibraryVersion ? "Xlib" : "Xserver",
 			       mjr,mnr);
 			break;
@@ -89,7 +90,7 @@ int main (int argc, char ** argv)
 	XtDisplayInitialize(app_cont, dpy, name, name, NULL, 0, &argc, argv);
 #endif
 	GetConfig(dpy, &conf);
-    
+
 /* My MAIN window */
 	geom = conf.main_geom;
 	if (geom.mask & (XNegative|YNegative)) {
@@ -144,7 +145,6 @@ int main (int argc, char ** argv)
 		wm_hints->initial_state = WithdrawnState;
 		wm_hints->flags = wm_hints->flags | StateHint | IconWindowHint;
 		XSetWMHints(dpy, MainWin, wm_hints);
-
 	}
 	else icon = (Window) 0;
 
@@ -393,6 +393,7 @@ int main (int argc, char ** argv)
 					Terminate();
 				break;
 			case CreateNotify:
+			case NoExpose:
 			case UnmapNotify:
 			case MapNotify:
 			case MappingNotify:
@@ -415,8 +416,15 @@ void Reset()
 
 void Terminate()
 {
+	int i;
 	win_free_list();
 	XFreeGC(dpy,gc);
+
+	for (i = 0; i < 2 * MAX_GROUP; i++) {
+		if (conf.pictures[i])
+			XFreePixmap(dpy, conf.pictures[i]);
+	}
+
 	if (icon) XDestroyWindow(dpy, icon);
 	XDestroyWindow(dpy,MainWin);
 #ifdef XT_RESOURCE_SEARCH
@@ -441,16 +449,20 @@ void update_window(win, gc, group)
 	Window win; GC gc; int group;
 {
 	if (conf.pictures[group])
-		XPutImage(dpy, win, gc, conf.pictures[group],
-			  0, 0, 0, 0, conf.main_geom.width, conf.main_geom.height);
+		XCopyArea(dpy, conf.pictures[group], win, gc,
+			  0, 0,
+			  conf.main_geom.width, conf.main_geom.height,
+			  0, 0);
 }
 
 void update_button(win, gc, group)
 	Window win; GC gc; int group;
 {
 	if (win && conf.pictures[group+4])
-		XPutImage(dpy, win, gc, conf.pictures[group + 4],
-			  0, 0, 0, 0, conf.but_geom.width, conf.but_geom.height);
+		XCopyArea(dpy, conf.pictures[group+4], win, gc,
+			  0, 0,
+			  conf.but_geom.width, conf.but_geom.height,
+			  0, 0);
 }
 
 WInfo* AddWindow(win, parent)

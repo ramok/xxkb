@@ -1,9 +1,13 @@
+/* -*- tab-width: 4; -*- */
+
 #include <X11/Xlib.h>
 #include <X11/Xresource.h>
 #include <X11/Xutil.h>
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+
+#include <X11/XKBlib.h>
 
 #include "wlist.h"
 #include "xxkb.h"
@@ -86,6 +90,8 @@ char *ButXpmDflt[]  = {"en15.xpm", "ru15.xpm", "", ""};
 const char *AppName = "XXkb";
 const char *Yes   = "yes";
 const char *No    = "no";
+
+int load_image(Display *dpy, char* name, Pixmap *map);
 
 void ParseConfig(db, class, prefix, name, type, def_val, value)
 	XrmDatabase db;
@@ -211,7 +217,7 @@ void GetPixmapRes(dpy, path, db, resname, defaults, pixmap)
 	XrmDatabase db;
 	char        *path, *resname;
 	char        **defaults;
-	XImage      **pixmap;
+	Pixmap      *pixmap;
 {
 	int i;
 	char buf[6], *name, *fullname;
@@ -230,7 +236,7 @@ void GetPixmapRes(dpy, path, db, resname, defaults, pixmap)
 				free(fullname);
 			}
 		} else {
-			pixmap[i] = NULL;
+			pixmap[i] = (Pixmap) 0;
 		}
 	}
 }
@@ -370,11 +376,19 @@ void err_malloc()
 int load_image(dpy, name, pixmap)
 	Display *dpy;
 	char * name;
-	XImage **pixmap;
+	Pixmap *pixmap;
 {
 	int res;
-	res = XpmReadFileToImage(dpy, name, pixmap,
-				 NULL, NULL);
+	GC  gc;
+	unsigned long valuemask = 0; /* No data in "values" */
+	XImage    *picture;
+	Pixmap    pixId;
+	XGCValues values;
+
+	*pixmap = (Pixmap) 0;
+
+	res = XpmReadFileToImage(dpy, name, &picture, NULL, NULL);
+
 	switch (res) {
 	case XpmOpenFailed:
 		printf("Xpm file open failed: %s\n", name);
@@ -386,6 +400,14 @@ int load_image(dpy, name, pixmap)
 		printf("No memory for open xpm file: %s\n", name);
 		break;
 	default:
+		pixId = XCreatePixmap(dpy, RootWindow(dpy, DefaultScreen(dpy)),
+				      picture->width, picture->height,
+				      picture->depth);
+		gc = XCreateGC(dpy, pixId, valuemask, &values);
+		XPutImage(dpy, pixId, gc, picture, 0, 0, 0, 0,
+			  picture->width, picture->height);
+		XFreeGC(dpy, gc);
+		*pixmap = pixId;
 	}
 }
 

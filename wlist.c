@@ -1,3 +1,5 @@
+/* -*- tab-width: 4; -*- */
+
 #include <X11/Xlib.h>
 #include "wlist.h"
 

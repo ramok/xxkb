@@ -1,3 +1,5 @@
+/* -*- tab-width: 4; -*- */
+
 #define XT_RESOURCE_SEARCH
 
 #define MAX_GROUP	4
@@ -55,7 +57,7 @@ typedef struct {
         SearchList*  lists[4];
         char*        user_config;
         char*        tray_type;
-	XImage*      pictures[2*MAX_GROUP];
+	Pixmap       pictures[2*MAX_GROUP];
 } XXkbConfig;
 
 void GetConfig(Display *, XXkbConfig *);
