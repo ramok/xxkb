@@ -16,15 +16,20 @@
 #include <X11/IntrinsicP.h>
 #endif
 
+/* Forward declarations */
+int load_image(Display *dpy, char* name, Pixmap *map);
 void err_malloc(void);
 #define ERR_MALLOC	err_malloc()
+
+#define	countof(a)	(sizeof(a) / sizeof(a[0]))
+
 
 /* Gravity names */
 struct {
 	char *name;
 	int  len;
 	int  res;
-}GravityTab[] = {{"NorthEast", 9, NorthEastGravity},
+} GravityTab[] = {{"NorthEast", 9, NorthEastGravity},
 		 {"NorthWest", 9, NorthWestGravity},
 		 {"North",     5, NorthGravity},
 		 {"SouthEast", 9, SouthEastGravity},
@@ -44,7 +49,6 @@ struct {
                    {"wm_name",        WMName},
                    {"property",       Prop}
 };
-#define match_num sizeof(MatchLookup)/sizeof(MatchLookup[0])
 
 struct {
 	char       *name;
@@ -57,7 +61,6 @@ struct {
 		    {"alt_group4", AltGrp,     3},
 		    {"ignore",    Ignore,     0}
 };
-#define action_num sizeof(ActionLookup)/sizeof(ActionLookup[0])
 
 /* keep temporary for compatibility */
 char  *ignoreMatch[] = {"wm_class.class", "wm_class.name", "wm_name"};
@@ -66,13 +69,11 @@ char  *ignoreMatch[] = {"wm_class.class", "wm_class.name", "wm_name"};
 Geometry def_but_geom = { XNegative, -75, 7, 15, 15,  NorthEastGravity},
 	def_main_geom = {0, 0, 0, 48, 48, 0};
 
-typedef struct {
+struct {
 	char  *name;
 	char  *def;
 	int   flag;
-} CtrlRes;
-
-CtrlRes ControlsTable [] = {
+} ControlsTable [] = {
 	{"add_when_start",		"yes", When_start},
 	{"add_when_create",		"yes", When_create}, 
 	{"add_when_change",		"no",  When_change},
@@ -82,18 +83,15 @@ CtrlRes ControlsTable [] = {
 	{"button_delete_and_forget",	"yes", Forget_window},
 	{"mainwindow_delete",		"yes", Main_delete}
 };
-#define FlagsNum sizeof(ControlsTable)/sizeof(ControlsTable[0])
 
 char *MainXpmDflt[] = {"en48.xpm", "ru48.xpm", "", ""};
 char *ButXpmDflt[]  = {"en15.xpm", "ru15.xpm", "", ""};
 
-const char *AppName = "XXkb";
 const char *Yes   = "yes";
 const char *No    = "no";
 
-int load_image(Display *dpy, char* name, Pixmap *map);
-
-void ParseConfig(db, class, prefix, name, type, def_val, value)
+void
+ParseConfig(db, class, prefix, name, type, def_val, value)
 	XrmDatabase db;
 	char *class, *prefix, *name, *def_val;
 	ResType type;
@@ -127,8 +125,8 @@ void ParseConfig(db, class, prefix, name, type, def_val, value)
 	}
 }
 
-static
-SearchList* MakeSearchList(char *str)
+static SearchList*
+MakeSearchList(char *str)
 {
 	int len = strlen(str), count = 0;
 	char *i, *j;
@@ -173,7 +171,8 @@ SearchList* MakeSearchList(char *str)
 	return ret;
 }
 
-void GetRes(db, name1, name2, type, def_val, value)
+void
+GetRes(db, name1, name2, type, def_val, value)
 	XrmDatabase db;
 	char *name1, *name2, *def_val;
 	ResType type;
@@ -182,11 +181,12 @@ void GetRes(db, name1, name2, type, def_val, value)
 	char *name = malloc(strlen(name1) + strlen(name2) + 2);
 	if (!name) ERR_MALLOC;
 	sprintf(name, "%s.%s", name1, name2);
-	ParseConfig(db, "", AppName, name, type, def_val, value);
+	ParseConfig(db, "", APPNAME, name, type, def_val, value);
 	free(name);
 }
 
-void GetRes3(db, name1, name2, name3, type, def_val, value)
+void
+GetRes3(db, name1, name2, name3, type, def_val, value)
 	XrmDatabase db;
 	char *name1, *name2, *name3, *def_val;
 	ResType type;
@@ -195,11 +195,12 @@ void GetRes3(db, name1, name2, name3, type, def_val, value)
 	char *name = malloc(strlen(name1) + strlen(name2) + strlen(name3) + 3);
 	if (!name) ERR_MALLOC;
 	sprintf(name, "%s.%s.%s", name1, name2, name3);
-	ParseConfig(db, "", AppName, name, type, def_val, value);
+	ParseConfig(db, "", APPNAME, name, type, def_val, value);
 	free(name);
 }
 
-void GetControlRes(db, name1, name2, def_val, controls, flag)
+void
+GetControlRes(db, name1, name2, def_val, controls, flag)
 	XrmDatabase db;
 	char *name1, *name2, *def_val;
 	int *controls, flag;
@@ -212,7 +213,8 @@ void GetControlRes(db, name1, name2, def_val, controls, flag)
 		*controls &= ~flag;
 }
 
-void GetPixmapRes(dpy, path, db, resname, defaults, pixmap)
+void
+GetPixmapRes(dpy, path, db, resname, defaults, pixmap)
 	Display     *dpy;
 	XrmDatabase db;
 	char        *path, *resname;
@@ -241,7 +243,8 @@ void GetPixmapRes(dpy, path, db, resname, defaults, pixmap)
 	}
 }
 
-void GetGeometryRes(db, resname, def_geometry, geometry)
+void
+GetGeometryRes(db, resname, def_geometry, geometry)
 	XrmDatabase db;
 	char *resname;
 	Geometry def_geometry, *geometry;
@@ -263,9 +266,8 @@ void GetGeometryRes(db, resname, def_geometry, geometry)
 	*geometry = geom;
 }
 
-void GetConfig(dpy, conf)
-	Display *dpy;
-	XXkbConfig *conf;
+void
+GetConfig(Display *dpy, XXkbConfig *conf)
 {
 	XrmDatabase db;
 	char *xpmpath, *path, *filename, *resname, *str;
@@ -301,7 +303,7 @@ void GetConfig(dpy, conf)
 
 	GetRes(db, "xpm", "path", T_string, PIXMAPDIR, &xpmpath);
 
-	for (i = 0; i < FlagsNum; i++) {
+	for (i = 0; i < countof(ControlsTable); i++) {
 		GetControlRes(db, "controls",
 			      ControlsTable[i].name, ControlsTable[i].def,
 			      &conf->controls, ControlsTable[i].flag);
@@ -331,8 +333,8 @@ void GetConfig(dpy, conf)
 	}
 
 	resname = "app_list";
-	for (i = 0; i < match_num; i++) {
-		for (j = 0; j < action_num; j++) {
+	for (i = 0; i < countof(MatchLookup); i++) {
+		for (j = 0; j < countof(ActionLookup); j++) {
 			GetRes3(db, resname, MatchLookup[i].name, ActionLookup[j].name,
 				T_string, "", &str);
 			if (*str) {
@@ -365,7 +367,8 @@ void GetConfig(dpy, conf)
 	GetControlRes(db, resname , "3.reverse", No, &conf->controls, But3_reverse);
 }
 
-void err_malloc()
+void
+err_malloc()
 {
 	printf("xxkb: ParseConfig: Memory allocation error\n");
 	exit(0);
@@ -373,10 +376,8 @@ void err_malloc()
 
 #include <X11/xpm.h>
 
-int load_image(dpy, name, pixmap)
-	Display *dpy;
-	char * name;
-	Pixmap *pixmap;
+int
+load_image(Display *dpy, char * name, Pixmap *pixmap)
 {
 	int res;
 	GC  gc;
@@ -411,8 +412,8 @@ int load_image(dpy, name, pixmap)
 	}
 }
 
-static
-void FreeSearchList(SearchList *list)
+static void
+FreeSearchList(SearchList *list)
 {
 	if (list == NULL)
 		return;
@@ -425,9 +426,8 @@ void FreeSearchList(SearchList *list)
 	free(list);
 }
 
-static
-void RemakeSearchList(XXkbConfig *conf,
-                      MatchType type, ListAction act, char* string)
+static void
+RemakeSearchList(XXkbConfig *conf, MatchType type, ListAction act, char *string)
 {
 	SearchList *cur, *prev, *newlist;
 	int i;
@@ -453,7 +453,8 @@ void RemakeSearchList(XXkbConfig *conf,
 	}
 }
 
-void SaveAppInConfig(XXkbConfig *conf, char* name, MatchType type)
+void
+SaveAppInConfig(XXkbConfig *conf, char *name, MatchType type)
 {
 	XrmDatabase db;
 	XrmValue val;

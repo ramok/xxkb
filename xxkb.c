@@ -11,7 +11,6 @@
 #include "wlist.h"
 #include "xxkb.h"
 
-#define	NAME	"XXkb"
 #define BASE(w)	(w & base_mask)
 
 #ifdef XT_RESOURCE_SEARCH
@@ -30,7 +29,7 @@ int revert, grp;
 XWMHints *wm_hints;
 XSizeHints *size_hints;
 XClassHint class_hints;
-char *name=NAME;
+char *AppName = APPNAME;
 Atom take_focus_atom, wm_del_win;
 
 WInfo def_info, *info, *tmp_info;
@@ -38,16 +37,18 @@ kbdState def_state;
 XFocusChangeEvent focused_event;
 XErrorHandler DefErrHandler;
 
-static ListAction  FindAppList(Window w);
+/* Forward declaration */
+static ListAction FindAppList(Window w);
 
-int main (int argc, char ** argv)
+int
+main(int argc, char ** argv)
 {
 	int  xkbEventType, xkbError, reason_rtrn, mjr, mnr;
 	Bool fout_flag = False;
 	Geometry geom;
 	Atom protocols[1];
   
-/* Lets begin */
+	/* Lets begin */
 	dpy = XkbOpenDisplay( "", &xkbEventType, &xkbError,
 			      NULL, NULL, &reason_rtrn); 
 	if (!dpy) {
@@ -83,15 +84,15 @@ int main (int argc, char ** argv)
 	focused_event.type = FocusIn;
 	focused_event.display = dpy;
 
-/* My configuration*/
+	/* My configuration*/
 
 #ifdef XT_RESOURCE_SEARCH
 	app_cont = XtCreateApplicationContext();
-	XtDisplayInitialize(app_cont, dpy, name, name, NULL, 0, &argc, argv);
+	XtDisplayInitialize(app_cont, dpy, AppName, AppName, NULL, 0, &argc, argv);
 #endif
 	GetConfig(dpy, &conf);
 
-/* My MAIN window */
+	/* My MAIN window */
 	geom = conf.main_geom;
 	if (geom.mask & (XNegative|YNegative)) {
 		int x,y; unsigned int width, height, bord, dep;
@@ -115,10 +116,10 @@ int main (int argc, char ** argv)
 	wm_hints->input = False;
 	wm_hints->flags = InputHint | WindowGroupHint;
 	XSetWMHints(dpy, MainWin, wm_hints);
-	XStoreName(dpy, MainWin, name);
+	XStoreName(dpy, MainWin, AppName);
 
-	class_hints.res_name  = name;
-	class_hints.res_class = name;
+	class_hints.res_name  = AppName;
+	class_hints.res_class = AppName;
 	XSetClassHint(dpy, MainWin, &class_hints);
 	XSetCommand(dpy, MainWin, argv, argc);
   
@@ -133,7 +134,7 @@ int main (int argc, char ** argv)
 	*protocols = wm_del_win;
 	XSetWMProtocols(dpy, MainWin, protocols, 1);
 
-/* Show window ? */
+	/* Show window ? */
 	if (conf.controls&WMaker) {
 		icon = XCreateSimpleWindow(dpy, MainWin,
 					   geom.x, geom.y,
@@ -168,7 +169,7 @@ int main (int argc, char ** argv)
   
 	if (conf.controls&Main_enable) XMapWindow(dpy, MainWin);
 
-/* What events we want */
+	/* What events we want */
 	XkbSelectEventDetails(dpy, XkbUseCoreKbd, XkbStateNotify,
 			      XkbAllStateComponentsMask, XkbGroupStateMask);
 	if (conf.controls&When_create)
@@ -179,7 +180,7 @@ int main (int argc, char ** argv)
 
 	getGC(MainWin, &gc);
 
-/* set current defaults */
+	/* set current defaults */
 	def_state.group = conf.Base_group;
 	def_state.alt =   conf.Alt_group;  
 
@@ -205,7 +206,7 @@ int main (int argc, char ** argv)
 		if (!info) info = &def_info;
 	}
 
-/* Main Loop */
+	/* Main Loop */
 	while (1) {
 		XNextEvent(dpy, &ev.core);
 
@@ -407,14 +408,16 @@ int main (int argc, char ** argv)
 	return(0);
 }
 
-void Reset()
+void
+Reset()
 {
 	info = &def_info;
 	info->state = def_state;
 	XkbLockGroup(dpy, XkbUseCoreKbd, conf.Base_group);
 }
 
-void Terminate()
+void
+Terminate()
 {
 	int i;
 	win_free_list();
@@ -435,9 +438,8 @@ void Terminate()
 	exit(0);
 }
 
-void getGC(win, gc)
-	Window win;
-	GC * gc;
+void
+getGC(Window win, GC * gc)
 {
 	unsigned long valuemask=0; /* No data in ``values'' */
 	XGCValues values;
@@ -445,8 +447,8 @@ void getGC(win, gc)
 /*	XSetForeground(dpy, *gc, BlackPixel(dpy, scr)); */
 }
 
-void update_window(win, gc, group)
-	Window win; GC gc; int group;
+void
+update_window(Window win, GC gc, int group)
 {
 	if (conf.pictures[group])
 		XCopyArea(dpy, conf.pictures[group], win, gc,
@@ -455,8 +457,8 @@ void update_window(win, gc, group)
 			  0, 0);
 }
 
-void update_button(win, gc, group)
-	Window win; GC gc; int group;
+void
+update_button(Window win, GC gc, int group)
 {
 	if (win && conf.pictures[group+4])
 		XCopyArea(dpy, conf.pictures[group+4], win, gc,
@@ -465,8 +467,8 @@ void update_button(win, gc, group)
 			  0, 0);
 }
 
-WInfo* AddWindow(win, parent)
-	Window win, parent;
+WInfo*
+AddWindow(Window win, Window parent)
 {
 	int ignore = 0;
 	WInfo *info;
@@ -516,8 +518,8 @@ WInfo* AddWindow(win, parent)
 	return info;
 }
 
-Window MakeButton(parent)
-	Window parent;
+Window
+MakeButton(Window parent)
 {
 	Window button, rwin;
 	int x, y; unsigned int width, height, bord, dep;
@@ -547,8 +549,8 @@ Window MakeButton(parent)
 	return button;
 }
 
-Window GetGrandParent(w)
-	Window w;
+Window
+GetGrandParent(Window w)
 {
 	Window rwin, parent, *child; int num;
 
@@ -561,8 +563,8 @@ Window GetGrandParent(w)
 	}
 }
 
-void GetAppWindow(win, core)
-	Window win, *core;
+void
+GetAppWindow(Window win, Window *core)
 {
 	Window rwin, parent, *childrens, *child; int n;
 
@@ -582,8 +584,8 @@ void GetAppWindow(win, core)
 	if (childrens) XFree(childrens);
 }
 
-static
-Bool Compare(char *pattern, char *str)
+static Bool
+Compare(char *pattern, char *str)
 {
 	char *i = pattern, *j = str, *sub, *lpos;
 	Bool aster = False; 
@@ -613,8 +615,8 @@ Bool Compare(char *pattern, char *str)
 	return ((*i == *j) ? True : False);
 }
 
-static
-ListAction searchInList(SearchList *list, char *str)
+static ListAction
+searchInList(SearchList *list, char *str)
 {
 	int i;
 	ListAction ret = 0;
@@ -630,8 +632,8 @@ ListAction searchInList(SearchList *list, char *str)
 	return ret;
 }
 
-static
-ListAction searchInPropList(SearchList *list, Window win)
+static ListAction
+searchInPropList(SearchList *list, Window win)
 {
 	int i, j;
 	int prop_num;
@@ -670,9 +672,8 @@ ListAction searchInPropList(SearchList *list, Window win)
 	return ret;
 }
 
-
-static
-ListAction FindAppList(Window w)
+static ListAction
+FindAppList(Window w)
 {
 	ListAction ret = 0;
 	XClassHint wm_class;
@@ -696,7 +697,8 @@ ListAction FindAppList(Window w)
 	return ret;
 }
 
-Bool ExpectInput(Window w)
+Bool
+ExpectInput(Window w)
 {
 	Bool ok = False;
 	XWMHints *hints = NULL;
@@ -724,7 +726,8 @@ Bool ExpectInput(Window w)
 	return ok;
 }
 
-char* GetAppIdent(Window appwin, MatchType type)
+char*
+GetAppIdent(Window appwin, MatchType type)
 {
 	XClassHint wm_class;
 	char *name;
@@ -749,7 +752,8 @@ char* GetAppIdent(Window appwin, MatchType type)
 	}
 }
 
-void AddAppToConfig(Window appwin, unsigned int state)
+void
+AddAppToConfig(Window appwin, unsigned int state)
 {
 	char *name = NULL;
 	MatchType type;
@@ -767,7 +771,8 @@ void AddAppToConfig(Window appwin, unsigned int state)
 		type = WMClassName;
 	} 
 
-	if ((name = GetAppIdent(appwin, type)) != NULL) {
+	name = GetAppIdent(appwin, type);
+	if (name != NULL) {
 		SaveAppInConfig(&conf, name, type);
 		Xfree(name);
 	} else {
@@ -775,7 +780,8 @@ void AddAppToConfig(Window appwin, unsigned int state)
 	}
 }
 
-void ErrHandler(Display *dpy, XErrorEvent* err)
+void
+ErrHandler(Display *dpy, XErrorEvent *err)
 {
 	if ((err->error_code == BadWindow) || (err->error_code == BadDrawable))
 		return;
