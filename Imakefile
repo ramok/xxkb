@@ -5,12 +5,18 @@ BINDIR = $(BASEDIR)/bin
 PIXMAPDIR = $(BASEDIR)/share/xxkb
 LOCAL_LIBRARIES = $(XONLYLIB) -lXpm -lXt
 
-#SRCS = xxkb.c resource.c wlist.c
 OBJS = xxkb.o resource.o wlist.o
 PIXMAPS = pixmaps/\*.xpm
 
 DEFINES = -DAPPDEFDIR=\"$(DESTDIR)$(XAPPLOADDIR)\" -DAPPDEFFILE=\"XXkb\" \
 	-DXT_RESOURCE_SEARCH
+
+#if WITH_SVG_SUPPORT
+CFLAGS += `pkg-config --cflags glib-2.0 gdk-pixbuf-xlib-2.0 librsvg-2.0`
+LOCAL_LIBRARIES += `pkg-config --libs glib-2.0 gdk-pixbuf-xlib-2.0 librsvg-2.0`
+DEFINES += -DSVG_GRAPHICS
+#endif
+
 CDEBUGFLAGS = -O2 -Wall
 SED = sed
 

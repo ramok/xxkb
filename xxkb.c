@@ -151,11 +151,11 @@ main(int argc, char ** argv)
 
 	memset(&win_attr, 0, sizeof(win_attr));
 	win_attr.background_pixmap = ParentRelative;
-	win_attr.background_pixel = conf.mainwindow.border_color;
+	win_attr.border_pixel = conf.mainwindow.border_color;
 
 	main_win = XCreateWindow(dpy, root_win,
 					geom.x, geom.y,
-					geom.width, geom.height, conf.mainwindow.border_width,
+					geom.width, geom.height, 0,
 					CopyFromParent, InputOutput,
 					CopyFromParent, CWBackPixmap | CWBorderPixel,
 					&win_attr);
@@ -730,7 +730,7 @@ MakeButton(Window parent)
 
 	memset(&butt_attr, 0, sizeof(butt_attr));
 	butt_attr.background_pixmap = ParentRelative;
-	butt_attr.background_pixel = conf.button.border_color;
+	butt_attr.border_pixel = conf.button.border_color;
 	butt_attr.override_redirect = True;
 	butt_attr.win_gravity = geom.gravity;
 
@@ -1129,12 +1129,12 @@ MoveOrigin(Display *dpy, Window w, int *w_x, int *w_y)
 	XGetGeometry(dpy, w, &rwin, &x, &y, &width, &height, &border, &dep);
 
 	/* X axis */
-	if (width > geom.width) {
-		*w_x = (width - geom.width) / 2;
+	if (width > geom.width + border) {
+		*w_x = (width - geom.width - border) / 2;
 	}
 	/* Y axis */
-	if (height > geom.height) {
-		*w_y = (height - geom.height) / 2;
+	if (height > geom.height + border) {
+		*w_y = (height - geom.height - border) / 2;
 	}
 }
 
