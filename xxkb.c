@@ -112,7 +112,7 @@ main(int argc, char ** argv)
 	base_mask = ~(dpy->resource_mask);
 	sprintf(buf, "_NET_SYSTEM_TRAY_S%d", scr);
 	systray_selection_atom = XInternAtom(dpy, buf, False);
-	take_focus_atom = XInternAtom(dpy, "WM_TAKE_FOCUS", True);
+	take_focus_atom = XInternAtom(dpy, "WM_TAKE_FOCUS", False);
 	wm_del_win_atom = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
 	wm_manager_atom = XInternAtom(dpy, "MANAGER", False);
 	xembed_atom = XInternAtom(dpy, "_XEMBED", False);
