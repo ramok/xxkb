@@ -23,6 +23,8 @@
 static XtAppContext app_cont;
 #endif
 
+#define XEMBED_WINDOW	0
+
 XXkbConfig conf;
 
 Display *dpy;
@@ -32,18 +34,26 @@ XkbEvent ev;
 
 Window RootWin, MainWin, icon, win, focused, base_mask;
 int revert, grp;
-Atom take_focus_atom, wm_del_win;
+Atom systray_selection, take_focus_atom, wm_del_win, wm_manager, xembed;
 
 WInfo def_info, *info, *tmp_info;
 kbdState def_state;
 XFocusChangeEvent focused_event;
 XErrorHandler DefErrHandler;
 
+Window systray = None;
+int win_x = 0;
+int win_y = 0;
+
 /* Forward declaration */
 static ListAction GetWindowAction(Window w);
 static char* GetWindowIdent(Window appwin, MatchType type);
 static MatchType GetTypeFromState(unsigned int state);
 static void IgnoreWindow(WInfo *info, MatchType type);
+static Window GetSystray(Display *dpy);
+static void DockWindow(Display *dpy, Window systray, Window w);
+static void MoveOrigin(Display *dpy, Window w);
+static void SendDockMessage(Display* dpy, Window w, long message, long data1, long data2, long data3);
 
 int
 main(int argc, char ** argv)
@@ -54,6 +64,8 @@ main(int argc, char ** argv)
 	XWMHints	*wm_hints;
 	XSizeHints	*size_hints;
 	XClassHint	*class_hints;
+	XSetWindowAttributes win_attr;
+	char buf[64];
 
 	/* Lets begin */
 	dpy = XkbOpenDisplay("", &xkbEventType, &xkbError, NULL, NULL, &reason_rtrn); 
@@ -87,8 +99,13 @@ main(int argc, char ** argv)
 	scr = DefaultScreen(dpy);
 	RootWin = RootWindow(dpy, scr);
 	base_mask = ~(dpy->resource_mask);
+	sprintf(buf, "_NET_SYSTEM_TRAY_S%d", scr);
+	systray_selection = XInternAtom(dpy, buf, False);
 	take_focus_atom = XInternAtom(dpy, "WM_TAKE_FOCUS", True);
 	wm_del_win = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
+	wm_manager = XInternAtom(dpy, "MANAGER", False);
+	xembed = XInternAtom(dpy, "_XEMBED", False);
+	
 	DefErrHandler = XSetErrorHandler((XErrorHandler) ErrHandler);
  
 	focused_event.type = FocusIn;
@@ -118,10 +135,16 @@ main(int argc, char ** argv)
 		if (geom.mask & YNegative)
 			geom.y = height + geom.y - geom.height;
 	}
-
-	MainWin = XCreateSimpleWindow(dpy, RootWin, geom.x, geom.y,
-								  geom.width, geom.height, 0,
-								  BlackPixel(dpy, scr), WhitePixel(dpy, scr));
+	
+	memset(&win_attr, 0, sizeof(win_attr));
+	win_attr.background_pixmap = ParentRelative;
+	
+	MainWin = XCreateWindow(dpy, RootWin,
+					geom.x, geom.y,
+					geom.width, geom.height, 0,
+					CopyFromParent, InputOutput,
+					CopyFromParent, CWBackPixmap,
+					&win_attr);
 
 	XStoreName(dpy, MainWin, APPNAME);
 	XSetCommand(dpy, MainWin, argv, argc);
@@ -143,15 +166,18 @@ main(int argc, char ** argv)
 	XFree(class_hints);
 
 	/* SizeHints */
+	size_hints = XAllocSizeHints();
+	if (size_hints == NULL) errx(1, "Unable to allocate size hints");
 	if (geom.mask & (XValue|YValue)) {
-		size_hints = XAllocSizeHints();
-		if (size_hints == NULL) errx(1, "Unable to allocate size hints");
 		size_hints->x = geom.x;
 		size_hints->y = geom.y;
 		size_hints->flags = USPosition;
-		XSetNormalHints(dpy, MainWin, size_hints);
-		XFree(size_hints);
 	}
+	size_hints->base_width = size_hints->min_width = geom.width;
+	size_hints->base_height = size_hints->min_height = geom.height;
+	size_hints->flags |= PBaseSize | PMinSize;
+	XSetNormalHints(dpy, MainWin, size_hints);
+	XFree(size_hints);
 
 	/* to fix: fails if mainwindow geometry was not read */
 	XSetWMProtocols(dpy, MainWin, &wm_del_win, 1);
@@ -184,17 +210,22 @@ main(int argc, char ** argv)
 			r = XInternAtom(dpy, "_KDE_NET_WM_SYSTEM_TRAY_WINDOW_FOR", False);
 			XChangeProperty(dpy, MainWin, r, XA_WINDOW, 32, 0,
 							(unsigned char *)&data, 1);
+		} else if (! strcmp(conf.tray_type, "KDE3") ||
+			   ! strcmp(conf.tray_type, "GNOME2")) {
+			systray = GetSystray(dpy);
+			if(systray != None) {
+				DockWindow(dpy, systray, MainWin);
+			}
+		/* Don't show main window */
+		conf.controls &= ~Main_enable;
 		}
 	}
-
-	if (conf.controls & Main_enable)
-		XMapWindow(dpy, MainWin);
 
 	/* What events we want */
 	XkbSelectEventDetails(dpy, XkbUseCoreKbd, XkbStateNotify,
 						  XkbAllStateComponentsMask, XkbGroupStateMask);
 	if (conf.controls & When_create)
-		XSelectInput(dpy, RootWin, SubstructureNotifyMask);
+		XSelectInput(dpy, RootWin, StructureNotifyMask | SubstructureNotifyMask);
 
 	XSelectInput(dpy, MainWin, ExposureMask | ButtonPressMask);
 	if (icon)
@@ -231,6 +262,9 @@ main(int argc, char ** argv)
 		info = win_find(focused);
 		if (info == NULL) info = &def_info;
 	}
+
+	if (conf.controls & Main_enable)
+		XMapWindow(dpy, MainWin);
 
 	/* Main Loop */
 	while (1) {
@@ -290,10 +324,14 @@ main(int argc, char ** argv)
 		else
 			switch (ev.type) {          /* core events */
 			case Expose:	/* Update our window or button */
-				if (ev.core.xexpose.count != 0) break;
+				if (ev.core.xexpose.count != 0)
+					break;
 				win = ev.core.xexpose.window;
-				if ((win == MainWin) || (icon && (win == icon)))
+				if (win == MainWin)
+					MoveOrigin(dpy, MainWin);
+				if ((win == MainWin) || (icon && (win == icon))) {
 					win_update(win, gc, info->state.group);
+				}
 				else {
 					tmp_info = button_find(win);
 					if (tmp_info)
@@ -436,10 +474,32 @@ main(int argc, char ** argv)
 				break;
 
 			case ClientMessage:
-				win = ev.core.xclient.window;
-				if (((win == MainWin) || (win == icon))
-				    && ev.core.xclient.data.l[0] == wm_del_win)
-					Terminate();
+				if (ev.core.xclient.message_type != None && ev.core.xclient.format == 32) {
+					win = ev.core.xclient.window;
+					if (ev.core.xclient.message_type == wm_manager) {
+						if (ev.core.xclient.data.l[1] == systray_selection) {
+							if (systray == None) {
+								systray = ev.core.xclient.data.l[2];
+								DockWindow(dpy, systray, MainWin);
+							}
+						}
+					}
+					else
+#ifdef XEMBED_WINDOW	
+					if(ev.core.xclient.message_type == xembed && (win == MainWin)) {
+						/* XEMBED_EMBEDDED_NOTIFY */
+						if(ev.core.xclient.data.l[1] == 0) {
+							MoveOrigin(dpy, MainWin);
+							win_update(MainWin, gc, info->state.group);
+						}
+					}
+					else
+#endif
+					if (((win == MainWin) || (win == icon))
+					    && ev.core.xclient.data.l[0] == wm_del_win) {
+					    Terminate();
+					}
+				}
 				break;
 
 			case CreateNotify:
@@ -512,7 +572,7 @@ AddWindow(Window win, Window parent)
 	XWindowAttributes attr;
 
 	/* properties can be unappropriate at this moment */
-	/* so we need posibility to redecide when them will be changed*/
+	/* so we need posibility to redecide when them will be changed */
 	XSelectInput(dpy, win, PropertyChangeMask);
 
 	/* don't deal with windows that never get a focus */
@@ -883,5 +943,82 @@ ErrHandler(Display *dpy, XErrorEvent *err)
 	default:
 		(*DefErrHandler)(dpy, err);
 		break;
+	}
+}
+
+static
+Window GetSystray(Display *dpy)
+{
+	Window systray = None;
+	
+	XGrabServer(dpy);
+	
+	systray = XGetSelectionOwner(dpy, systray_selection);
+	
+	if(systray != None)
+		XSelectInput(dpy, systray, StructureNotifyMask | PropertyChangeMask);
+	
+	XUngrabServer(dpy);
+	
+	XFlush(dpy);
+	
+	return systray;
+}
+
+static
+void SendDockMessage(Display* dpy, Window w, long message, long data1, long data2, long data3)
+{
+	XEvent ev;
+	
+	memset(&ev, 0, sizeof(ev));
+	ev.xclient.type = ClientMessage;
+	ev.xclient.window = w;
+	ev.xclient.message_type = XInternAtom(dpy, "_NET_SYSTEM_TRAY_OPCODE", False);
+	ev.xclient.format = 32;
+	ev.xclient.data.l[0] = CurrentTime;
+	ev.xclient.data.l[1] = message;
+	ev.xclient.data.l[2] = data1;
+	ev.xclient.data.l[3] = data2;
+	ev.xclient.data.l[4] = data3;
+	
+	XSendEvent(dpy, w, False, NoEventMask, &ev);
+	XFlush(dpy);
+}
+
+static
+void DockWindow(Display *dpy, Window systray, Window w)
+{
+#ifdef XEMBED_WINDOW
+	Atom r;
+	unsigned long info[2] = { 0, 1 };
+	/* Make window embeddable */
+	r = XInternAtom(dpy, "_XEMBED_INFO", False);
+	XChangeProperty(dpy, w, r, r, 32, 0,
+			(unsigned char *)&info, 2);
+#endif
+	if(systray != None) {
+		SendDockMessage(dpy, systray, SYSTEM_TRAY_REQUEST_DOCK, w, 0, 0);
+	}
+}
+
+static
+void MoveOrigin(Display *dpy, Window w)
+{
+	Window rwin;
+	Geometry geom;
+	int x, y;
+	unsigned int width, height, bord, dep;
+	
+	geom = conf.mainwindow.geometry;
+	
+	XGetGeometry(dpy, w, &rwin, &x, &y, &width, &height, &bord, &dep);
+
+	/* X axis */
+	if(width > geom.width) {
+		win_x = (width - geom.width) / 2;
+	}
+	/* Y axis */
+	if(height > geom.height) {
+		win_y = (height - geom.height) / 2;
 	}
 }

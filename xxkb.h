@@ -26,6 +26,10 @@
 #define	Forget_window	(1<<14)
 #define	Label_enable	(1<<15)
 
+#define SYSTEM_TRAY_REQUEST_DOCK    0
+#define SYSTEM_TRAY_BEGIN_MESSAGE   1
+#define SYSTEM_TRAY_CANCEL_MESSAGE  2
+
 typedef struct {
 	int	mask;
 	int	x,y;

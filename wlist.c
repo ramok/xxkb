@@ -15,6 +15,7 @@
 
 extern Display *dpy;
 extern XXkbConfig conf;
+extern win_x, win_y;
 
 WInfo* win_find(w)
 	Window w;
@@ -49,7 +50,7 @@ win_update(win, gc, group)
 				  0, 0,
 				  conf.mainwindow.geometry.width,
 				  conf.mainwindow.geometry.height,
-				  0, 0);
+				  win_x, win_y);
 }
 
 void
