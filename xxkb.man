@@ -19,7 +19,7 @@ applications lists which allow to tune its behavior for some separate
 applications.
   The \fBxxkb\fR works with any window manager.
 .SH USAGE
-  Working as an indicator the \fBxxkb\fR shows a current XKB layout using one of
+Working as an indicator the \fBxxkb\fR shows a current XKB layout using one of
 four pixmaps and changes the pixmap when you change a layout with the keyboard
 (using the key or the key combination specified in the config file as an XKB
 group switcher) or using any other application which able to change the XKB
@@ -82,20 +82,32 @@ such docklets have a size less than a default icons size for an xxkb main
 window. If you want to use this option you need another set of icons.)
 .TP 4
 .B XXkb.mainwindow.geometry
-the geometry ( WIDTHxHEIGHT{+-}X{+-}Y ) of the main window.
+the geometry ( WIDTHxHEIGHT{+-}XOFF{+-}YOFF ) of the main
+window. Please read the \fBGEOMETRY SPECIFICATIONS\fR section of X(7)
+for details.
 .TP 4
-.B XXkb.mainwindow.xpm.1
-.TP 4
-.B XXkb.mainwindow.xpm.2
-.TP 4
-.B XXkb.mainwindow.xpm.3
-.TP 4
-.B XXkb.mainwindow.xpm.4
-pixmap file names for each indicated group. If your symbols map has less
+.B XXkb.mainwindow.xpm.N
+pixmap file names for each indicated group N. If your symbols map has less
 than four groups the unused group icons can be ommited. If the file name
 begins from '/' it means full path for the file. Otherwise it means the
 relative path begining from the \fBXXkb.xpm.path\fR value.
-.SH  Operation mode options.
+.TP 4
+.B XXkb.mainwindow.label.enable
+enable labels to be printed instead of images. Group descriptions will
+be used if not overwritten by \fBXXkb.mainwindow.label.text.N\fR (where N
+is 1..4, group number) options.
+.TP 4
+.B XXkb.mainwindow.label.text.N
+label for the specified group N.
+.TP 4
+.B XXkb.mainwindow.label.background
+.TP 4
+.B XXkb.mainwindow.label.foreground
+colors used to draw background and label text respectively.
+.TP 4
+.B XXkb.mainwindow.label.font
+font to be used when drawing labels.
+.SH  Operation mode options
 Since the \fBxxkb\fR can keep the keyboard state for each application and
 restore the state when the focus is changed there are group of options which
 controls how the \fBxxkb\fR finds the application windows.
@@ -120,11 +132,6 @@ doesn't work.
 It makes the \fBxxkb\fR reset the keyboard group when the focus leaves
 the window. The mode makes sense with the \fBadd_when_change\fR mode only.
 .TP 4
-.B XXkb.button.enable 
-If this mode is switched on the \fBxxkb\fR adds to a titlebar of each managed
-window an additional button which is the indicator and the layout switcher
-for that separate window.
-.TP 4
 .B XXkb.controls.button_delete 
 This mode (switched on by default) allows user to remove the per window button
 using a mouse middle button click. Although the \fBxxkb\fR tries to ignore
@@ -133,7 +140,7 @@ windows can still appear. Or there are windows where an user for some reason
 doesn't want to have the button.
 .TP 4
 .B XXkb.controls.button_delete_and_forget 
-This mode in addition to previous one makes \fBxxkb\f to forget the window
+This mode in addition to previous one makes \fBxxkb\fR to forget the window
 which button is deleted.  It means the \fBxxkb\f will not remeber the keyboard
 state changes in this window and restore this state when the window will be
 focused.
@@ -156,41 +163,42 @@ the base group (integer 1..4).
 .TP 4
 .B XXkb.group.alt
 the default alternative group (integer 1..4).
-.SH The application window button options.
-All these options make sense if the
-.B XXkb.button.enable
-switched on. The button which the \fBxxkb\fR attaches to the titlebar is not
-an usual window manager button but the window (with a pixmap) owned by
-the xxkb itself. It means that in some cases an user need to tune the button
-size and the position for the button looks like a window manager button.
+.SH The application window button options
+All these options make sense if the \fBXXkb.button.enable\fR switched on.
+.TP 4
+.B XXkb.button.enable 
+If turned on, the \fBxxkb\fR adds an additional button to a titlebar of each
+managed window which is the indicator and the layout switcher for that
+particular window.
+These buttons are not usual window manager buttons but windows
+(with a pixmap) owned by the \fBxxkb\fR itself. It means that in some cases
+a user needs to tune the button size and the position for the button
+look like a window manager decoration element.
 .TP 4
 .B XXkb.button.geometry
-the button geometry ( WIDTHxHEIGHT{+-}X{+-}Y ).
+the button geometry ( WIDTHxHEIGHT{+-}XOFF{+-}YOFF ).
 .TP 4
-.B XXkb.button.gravity 
-the button gravity. It defines how the button position changes when you resize
-the window. It value should be one of
-.B North, NorthEast, NorthWest, South, SouthEast, SouthWest, East, West
-or
-.B Center.
-The default value is \fBNorthEast\fR.
-.TP 4
-.B XXkb.button.xpm.1
-.TP 4
-.B XXkb.button.xpm.2
-.TP 4
-.B XXkb.button.xpm.3
-.TP 4
-.B XXkb.button.xpm.4 
+.B XXkb.button.xpm.N
 the pixmap file names (the same as for the \fBXXkb.mainwindow.xpm.*\fR options).
-.SH  Bell options.
+.TP 4
+.B XXkb.button.label.enable
+.TP 4
+.B XXkb.button.label.text.N
+.TP 4
+.B XXkb.button.label.background
+.TP 4
+.B XXkb.button.label.foreground
+.TP 4
+.B XXkb.button.label.font
+see description of their mainwindow counterparts.
+.SH  Bell options
 .TP 4
 .B XXkb.bell.enable
 enables the keyboard bell when the layout changes.
 .TP 4
 .B XXkb.bell.percent
 an argument value for the XBell call.
-.SH  Applications lists options.
+.SH  Applications lists options
 The \fBxxkb\fR allows to specify lists of applications that requires some
 special actions. The applications can be specified using their
 \fBWM_CLASS\fR or \fBWM_NAME\fR properties.

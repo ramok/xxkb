@@ -10,6 +10,11 @@ XXkb.mainwindow.xpm.1: en48.xpm
 XXkb.mainwindow.xpm.2: ru48.xpm
 XXkb.mainwindow.xpm.3: su48.xpm
 XXkb.mainwindow.xpm.4:
+XXkb.mainwindow.label.font: -misc-*-r-*-20-*
+
+XXkb.*.label.foreground: white
+XXkb.*.label.background: purple
+XXkb.*.label.enable: no
 
 ! XXkb.mainwindow.in_tray:
 ! possible values - KDE, KDE2, GNOME
@@ -20,6 +25,7 @@ XXkb.button.xpm.1: en15.xpm
 XXkb.button.xpm.2: ru15.xpm
 XXkb.button.xpm.3: su15.xpm
 XXkb.button.xpm.4:
+XXkb.button.label.font: -misc-*-r-*-13-*
 
 XXkb.controls.add_when_start: yes
 XXkb.controls.add_when_create: yes

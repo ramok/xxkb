@@ -136,8 +136,7 @@ GetRes(db, name, type, required, value)
 
 			/* Be sure to exit if the required resource could not be read. */
 			exit(2);
-		}
-		else {
+		} else {
 			free(full_res_name);
 			return;
 		}
@@ -190,6 +189,31 @@ SetRes(db, name, type, val)
 }
 
 static void
+GetColorRes(dpy, db, name, color)
+	Display *dpy;
+	XrmDatabase db;
+	char	*name;
+	unsigned int *color;
+{
+	XColor scr_def, exact_def;
+	Status stat;
+	char   *color_name;
+
+	/* First, try if the color is specified by the name */
+	GetRes(db, name, T_string, True, &color_name);
+	stat = XAllocNamedColor(dpy, DefaultColormap(dpy, DefaultScreen(dpy)),
+							color_name, &scr_def, &exact_def);
+	if (stat != 0) {
+		/* success */
+		*color = scr_def.pixel;
+		return;
+	}
+
+	/* No luck, so it must be hex */
+	GetRes(db, name, T_ulong, True, color);
+}
+
+static void
 GetControlRes(db, name, controls, flag)
 	XrmDatabase db;
 	char *name;
@@ -204,73 +228,180 @@ GetControlRes(db, name, controls, flag)
 }
 
 static void
-GetPixmapRes(dpy, db, path, window_name, pixmap)
+GetElementRes(dpy, db, window_name, element)
 	Display     *dpy;
 	XrmDatabase db;
-	char        *path, *window_name;
-	Pixmap      *pixmap;
+	char        *window_name;
+	XXkbElement *element;
 {
-	int i;
+	int i, mask;
+	Bool labels_enabled;
 	size_t len;
-	char res_name[64], *filename, *fullname;
-
-	for (i = 0; i < MAX_GROUP; i++) {
-		sprintf(res_name, "%s.xpm.%d", window_name, i + 1);
-		GetRes(db, res_name, T_string, True, &filename);
-		if (*filename) {
-			if (*filename == '/') {
-				LoadImage(dpy, filename, &pixmap[i]);
-			} else {
-				len = strlen(path) + 1 + strlen(filename);
-				fullname = malloc(len + 1);
-				if (fullname == NULL) {
-					warn(NULL);
-					pixmap[i] = (Pixmap) 0;
-					continue;
-				}
-				sprintf(fullname, "%s/%s", path, filename);
-				LoadImage(dpy, fullname, &pixmap[i]);
-				free(fullname);
-			}
-		} else {
-			pixmap[i] = (Pixmap) 0;
-		}
-	}
-}
-
-static void
-GetGeometryRes(dpy, db, window_name, geometry)
-	Display     *dpy;
-	XrmDatabase db;
-	char 		*window_name;
-	Geometry 	*geometry;
-{
-	char res_name[64], *str_geom, *str_gravity = NULL;
-	Geometry geom;
+	char res_name[64], *str_geom, *str_gravity;
+	Pixmap *pixmap = element->pictures;
+	Geometry *geom = &element->geometry;
 
 	sprintf(res_name, "%s.geometry", window_name);
 	GetRes(db, res_name, T_string, True, &str_geom);
-	geom.mask = XParseGeometry(str_geom, &geom.x, &geom.y, &geom.width, &geom.height);
+	mask = XParseGeometry(str_geom, &geom->x, &geom->y, &geom->width, &geom->height);
+	if (~mask & AllValues) {
+		warnx("Incomplete geometry for %s", window_name);
+	}
+
+	str_gravity = NULL;
 	sprintf(res_name, "%s.gravity", window_name);
 	GetRes(db, res_name, T_string, False, &str_gravity);
-	if (str_gravity && *str_gravity) {
+	if (str_gravity == NULL) {
+		/* Get the gravity from the geometry */
+		XSizeHints *size_hts = XAllocSizeHints();
+		if (size_hts == NULL) {
+			warnx("Unable to allocate size hints");
+			free(str_geom);
+			return;
+		}
+
+		XWMGeometry(dpy, DefaultScreen(dpy), str_geom, NULL, 0, size_hts, &geom->x, &geom->y, &geom->width, &geom->height, &geom->gravity);
+		XFree(size_hts);
+	} else {
 		/* Legacy code */
-		int i;
 		for (i = 0; i < countof(GravityTable); i++) {
 			if (!strncmp(str_gravity, GravityTable[i].name, strlen(GravityTable[i].name))) {
-				geom.gravity = GravityTable[i].res;
+				geom->gravity = GravityTable[i].res;
 				break;
 			}
 		}
+
+		free(str_gravity);
 	}
-	else {
-		/* Get the gravity from the geometry */
-		XSizeHints *size_hts = XAllocSizeHints();
-		if (!size_hts) errx(1, "Unable to allocate size hints");
-		XWMGeometry(dpy, DefaultScreen(dpy), str_geom, "", 0, size_hts, &geom.x, &geom.y, &geom.width, &geom.height, &geom.gravity);
-		XFree(size_hts);
+	free(str_geom);
+
+
+	/* images or labels? */
+	sprintf(res_name, "%s.label.enable", window_name);
+	GetRes(db, res_name, T_bool, True, &labels_enabled);
+	if (labels_enabled) {
+		/*
+		 * labels
+		 */
+		GC  gc;
+		Pixmap    pixId;
+		XGCValues values;
+		XFontStruct* font_struct = NULL;
+		unsigned long valuemask = 0; /* No data in "values" */
+		unsigned int background, foreground;
+		char *font, *label;
+		int w = 3, h = 2, depth = 16;
+
+		sprintf(res_name, "%s.label.font", window_name);
+		GetRes(db, res_name, T_string, True, &font);
+
+		sprintf(res_name, "%s.label.background", window_name);
+		GetColorRes(dpy, db, res_name, &background);
+		sprintf(res_name, "%s.label.foreground", window_name);
+		GetColorRes(dpy, db, res_name, &foreground);
+
+		for (i = 0; i < MAX_GROUP; i++) {
+			sprintf(res_name, "%s.label.text.%d", window_name, i + 1);
+			label = NULL;
+			GetRes(db, res_name, T_string, False, &label);
+			if (label == NULL) {
+				XkbDescPtr desc;
+
+				desc = XkbAllocKeyboard();
+				if (desc == NULL) {
+					warnx("Unable to allocate a keyboard description");
+					continue;
+				}
+
+				XkbGetNames(dpy, XkbGroupNamesMask, desc);
+				if (desc->names == NULL || desc->names->groups[i] == 0) {
+					/*warnx("Unable to get keyboard names");*/
+					continue;
+				}
+
+				label = XGetAtomName(dpy, desc->names->groups[i]);
+				if (label == NULL) {
+					warnx("Unable to get a name of the group %d", i);
+					continue;
+				}
+			}
+
+			pixId = XCreatePixmap(dpy, RootWindow(dpy, DefaultScreen(dpy)),
+								  geom->width, geom->height, depth);
+			gc = XCreateGC(dpy, pixId, valuemask, &values);
+
+			/* Clear the box. Fill it with a background color */
+			XSetForeground(dpy, gc, background);
+			XFillRectangle(dpy, pixId, gc, 0, 0, geom->width, geom->height);
+
+			XSetForeground(dpy, gc, foreground);
+			XSetBackground(dpy, gc, background);
+
+			/* Load and set the font */
+			font_struct = XLoadQueryFont(dpy, font);
+			if (font_struct != NULL)
+			{
+				XSetFont(dpy, gc, font_struct->fid);
+
+				h = (geom->width -
+					 (font_struct->max_bounds.rbearing
+					  - font_struct->min_bounds.lbearing) * strlen(label)) / 2;
+				w = (geom->height -
+					 (font_struct->ascent + font_struct->descent)) / 2
+					+ font_struct->descent;
+
+				XFreeFont(dpy, font_struct);
+			}
+
+			XDrawString(dpy, pixId, gc,
+						h + 1, geom->height - w,
+						label, strlen(label));
+
+			pixmap[i] = pixId;
+
+			XFreeGC(dpy, gc);
+			XFree(label);
+		}
+
+		free(font);
+	} else {
+		/*
+		 * images
+		 */
+		char res_name[64], *filename, *fullname, *xpmpath;
+		
+		GetRes(db, "xpm.path", T_string, True, &xpmpath);
+
+		for (i = 0; i < MAX_GROUP; i++) {
+			sprintf(res_name, "%s.xpm.%d", window_name, i + 1);
+			GetRes(db, res_name, T_string, True, &filename);
+			if (filename != NULL && *filename != '\0') {
+				if (*filename == '/') {
+					LoadImage(dpy, filename, &pixmap[i]);
+				} else {
+					len = strlen(xpmpath) + 1 + strlen(filename);
+					fullname = malloc(len + 1);
+					if (fullname == NULL) {
+						warn(NULL);
+						free(filename);
+						pixmap[i] = (Pixmap) 0;
+						continue;
+					}
+
+					sprintf(fullname, "%s/%s", xpmpath, filename);
+					LoadImage(dpy, fullname, &pixmap[i]);
+
+					free(fullname);
+				}
+
+				free(filename);
+			} else {
+				pixmap[i] = (Pixmap) 0;
+			}
+		}
+
+		free(xpmpath);
 	}
-	*geometry = geom;
 }
 
 
@@ -288,7 +419,7 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 	XrmDatabase db;
 	SearchList *list;
 	Status stat;
-	char *xpmpath, *homedir, *filename;
+	char *homedir, *filename;
 	char *str_list, *res_app_list, res_ctrls[256];
 	size_t len;
 	int i, j;
@@ -296,6 +427,7 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 	homedir = getenv("HOME");
 
 	XrmInitialize();
+
 
 	/*
 	 * read global settings
@@ -361,8 +493,6 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 
 	conf->user_config = filename;
 
-	GetRes(db, "xpm.path", T_string, True, &xpmpath);
-
 	for (i = 0; i < countof(ControlsTable); i++) {
 		sprintf(res_ctrls, "controls.%s", ControlsTable[i].name);
 		GetControlRes(db, res_ctrls, &conf->controls, ControlsTable[i].flag);
@@ -374,12 +504,13 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 	conf->Alt_group--;
 
 	GetControlRes(db, "bell.enable", &conf->controls, Bell_enable);
-	GetRes(db, "bell.percent", T_int, True, &conf->Bell_percent);
+	if (conf->controls & Bell_enable) {
+		GetRes(db, "bell.percent", T_int, True, &conf->Bell_percent);
+	}
 
 	GetControlRes(db, "mainwindow.enable", &conf->controls, Main_enable);
 	/* to fix: move into if-case */
-	GetPixmapRes(dpy, db, xpmpath, "mainwindow", &conf->mainwindow.pictures);
-	GetGeometryRes(dpy, db, "mainwindow", &conf->mainwindow.geometry);
+	GetElementRes(dpy, db, "mainwindow", &conf->mainwindow);
 	if (conf->controls & Main_enable) {
 		GetControlRes(db, "mainwindow.appicon", &conf->controls, WMaker);
 		GetRes(db, "mainwindow.in_tray", T_string, False, &conf->tray_type);
@@ -387,10 +518,8 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 
 	GetControlRes(db, "button.enable", &conf->controls, Button_enable);
 	if (conf->controls & Button_enable) {
-		GetPixmapRes(dpy, db, xpmpath, "button", &conf->button.pictures);
-		GetGeometryRes(dpy, db, "button", &conf->button.geometry);
+		GetElementRes(dpy, db, "button", &conf->button);
 	}
-	free(xpmpath);
 
 	for (i = 0; i < countof(MatchTable); i++) {
 		for (j = 0; j < countof(ActionTable); j++) {
@@ -475,6 +604,7 @@ AddAppToIgnoreList(conf, app_ident, ident_type)
 		return;
 
 	len = strlen(app_ident);
+
 	orig_list = NULL;
 	GetRes(db, res_name, T_string, False, &orig_list);
 	if (orig_list != NULL) {
@@ -486,6 +616,7 @@ AddAppToIgnoreList(conf, app_ident, ident_type)
 	new_list = malloc(len + 1);
 	if (new_list == NULL) {
 		warn(NULL);
+		free(orig_list);
 		free(res_name);
 		XrmDestroyDatabase(db);
 		return;
@@ -502,6 +633,7 @@ AddAppToIgnoreList(conf, app_ident, ident_type)
 	/* parse the new list */
 	list = MakeSearchList(new_list);
 	if (list == NULL) {
+		free(orig_list);
 		free(res_name);
 		free(new_list);
 		XrmDestroyDatabase(db);
@@ -519,6 +651,7 @@ AddAppToIgnoreList(conf, app_ident, ident_type)
 	SetRes(db, res_name, T_string, new_list);
 	free(new_list);
 	free(res_name);
+	free(orig_list);
 
 	/* save the database */
 	XrmPutFileDatabase(db, conf->user_config);

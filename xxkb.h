@@ -24,6 +24,7 @@
 #define	But3_reverse	(1<<13)
 
 #define	Forget_window	(1<<14)
+#define	Label_enable	(1<<15)
 
 typedef struct {
 	int	mask;
@@ -52,9 +53,6 @@ typedef struct {
 typedef	struct {
 	Geometry geometry;
 	Pixmap   pictures[MAX_GROUP];
-	char*    labels[MAX_GROUP];
-	char*    font;
-	unsigned long	foreground, background;
 } XXkbElement;
 
 typedef struct {
