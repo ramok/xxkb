@@ -99,7 +99,7 @@ main(int argc, char ** argv)
 			break;
 		}
 		exit(1);
-	}    
+	}
 
 	scr = DefaultScreen(dpy);
 	RootWin = RootWindow(dpy, scr);
@@ -130,7 +130,7 @@ main(int argc, char ** argv)
 
 	/* My MAIN window */
 	geom = conf.mainwindow.geometry;
-	if (geom.mask & (XNegative|YNegative)) {
+	if (geom.mask & (XNegative | YNegative)) {
 		int x,y;
 		unsigned int width, height, bord, dep;
 		Window rwin;
@@ -173,7 +173,7 @@ main(int argc, char ** argv)
 	/* SizeHints */
 	size_hints = XAllocSizeHints();
 	if (size_hints == NULL) errx(1, "Unable to allocate size hints");
-	if (geom.mask & (XValue|YValue)) {
+	if (geom.mask & (XValue | YValue)) {
 		size_hints->x = geom.x;
 		size_hints->y = geom.y;
 		size_hints->flags = USPosition;
@@ -206,23 +206,24 @@ main(int argc, char ** argv)
 	if (conf.tray_type) {
 		Atom r;
 		int data = 1;
-		if (! strcmp(conf.tray_type, "KDE") ||
-		    ! strcmp(conf.tray_type, "GNOME") ) {
+		if (!strcmp(conf.tray_type, "KDE") ||
+		    !strcmp(conf.tray_type, "GNOME") ) {
 			r = XInternAtom(dpy, "KWM_DOCKWINDOW", False);
 			XChangeProperty(dpy, MainWin, r, r, 32, 0,
 							(unsigned char *)&data, 1);
-		} else if (! strcmp(conf.tray_type, "KDE2")) {
+		} else if (!strcmp(conf.tray_type, "KDE2")) {
 			r = XInternAtom(dpy, "_KDE_NET_WM_SYSTEM_TRAY_WINDOW_FOR", False);
 			XChangeProperty(dpy, MainWin, r, XA_WINDOW, 32, 0,
 							(unsigned char *)&data, 1);
-		} else if (! strcmp(conf.tray_type, "KDE3") ||
-			   ! strcmp(conf.tray_type, "GNOME2")) {
+		} else if (!strcmp(conf.tray_type, "KDE3") ||
+		           !strcmp(conf.tray_type, "GNOME2")) {
 			systray = GetSystray(dpy);
-			if(systray != None) {
+			if (systray != None) {
 				DockWindow(dpy, systray, MainWin);
 			}
-		/* Don't show main window */
-		conf.controls &= ~Main_enable;
+
+			/* Don't show main window */
+			conf.controls &= ~Main_enable;
 		}
 	}
 
@@ -300,7 +301,9 @@ main(int argc, char ** argv)
 					if (conf.Base_group < info->state.alt) {
 						g_min = conf.Base_group; g_max = info->state.alt;
 					}
-					else { g_max = conf.Base_group; g_min = info->state.alt;}
+					else {
+						g_max = conf.Base_group; g_min = info->state.alt;
+					}
 					if ((grp > g_min) && (grp < g_max)) {
 						XkbLockGroup(dpy, XkbUseCoreKbd, g_max);
 						break;
@@ -310,6 +313,7 @@ main(int argc, char ** argv)
 						break;
 					}
 				}
+
 				info->state.group = grp;
 				if ((conf.controls & Two_state) &&
 				    (grp != conf.Base_group) && (grp != info->state.alt))
@@ -465,8 +469,8 @@ main(int argc, char ** argv)
 				break;
 
 			case ConfigureNotify:
-				if (!ev.core.xconfigure.above
-					|| !(conf.controls & Button_enable))
+				if (!ev.core.xconfigure.above ||
+				    !(conf.controls & Button_enable))
 					break;
 				tmp_info = button_find(ev.core.xconfigure.above);
 				if (tmp_info != NULL)
@@ -486,7 +490,7 @@ main(int argc, char ** argv)
 
 			case ClientMessage:
 				if (ev.core.xclient.message_type != None
-					&& ev.core.xclient.format == 32) {
+				    && ev.core.xclient.format == 32) {
 					win = ev.core.xclient.window;
 					if (ev.core.xclient.message_type == wm_manager) {
 						if (ev.core.xclient.data.l[1] == systray_selection) {
@@ -495,22 +499,18 @@ main(int argc, char ** argv)
 								DockWindow(dpy, systray, MainWin);
 							}
 						}
-					}
-					else
 #ifdef XEMBED_WINDOW	
-					if(ev.core.xclient.message_type == xembed
-					   && (win == MainWin)) {
+					} else if (ev.core.xclient.message_type == xembed
+					           && (win == MainWin)) {
 						/* XEMBED_EMBEDDED_NOTIFY */
-						if(ev.core.xclient.data.l[1] == 0) {
+						if (ev.core.xclient.data.l[1] == 0) {
 							MoveOrigin(dpy, MainWin, &win_x, &win_y);
 							win_update(MainWin, &conf, gc, info->state.group, win_x, win_y);
 						}
-					}
-					else
 #endif
-					if (((win == MainWin) || (win == icon))
-					    && ev.core.xclient.data.l[0] == wm_del_win) {
-					    Terminate();
+					} else if (((win == MainWin) || (win == icon))
+					           && ev.core.xclient.data.l[0] == wm_del_win) {
+						Terminate();
 					}
 				}
 				break;
@@ -594,8 +594,8 @@ AddWindow(Window win, Window parent)
 		return (WInfo*) 0;
 
 	action = GetWindowAction(win);
-	if ( ((action & Ignore) && !(conf.controls & Ignore_reverse)) ||
-	     (!(action & Ignore) && (conf.controls & Ignore_reverse)))
+	if (((action & Ignore) && !(conf.controls & Ignore_reverse)) ||
+	    (!(action & Ignore) && (conf.controls & Ignore_reverse)))
 		ignore = 1;
 
 	info = win_find(win);
@@ -614,7 +614,7 @@ AddWindow(Window win, Window parent)
 	}
 
 	info->ignore = ignore;
-	if ((conf.controls & Button_enable) && (!info->button) && !ignore )
+	if ((conf.controls & Button_enable) && (!info->button) && !ignore)
 		info->button = MakeButton(parent);
 
 /* to be sure that window still exists */
@@ -969,7 +969,7 @@ GetSystray(Display *dpy)
 	
 	systray = XGetSelectionOwner(dpy, systray_selection);
 	
-	if(systray != None)
+	if (systray != None)
 		XSelectInput(dpy, systray, StructureNotifyMask | PropertyChangeMask);
 	
 	XUngrabServer(dpy);
@@ -1009,7 +1009,7 @@ DockWindow(Display *dpy, Window systray, Window w)
 	r = XInternAtom(dpy, "_XEMBED_INFO", False);
 	XChangeProperty(dpy, w, r, r, 32, 0, (unsigned char *)&info, 2);
 #endif
-	if(systray != None) {
+	if (systray != None) {
 		SendDockMessage(dpy, systray, SYSTEM_TRAY_REQUEST_DOCK, w, 0, 0);
 	}
 }
@@ -1027,11 +1027,11 @@ MoveOrigin(Display *dpy, Window w, int *w_x, int *w_y)
 	XGetGeometry(dpy, w, &rwin, &x, &y, &width, &height, &bord, &dep);
 
 	/* X axis */
-	if(width > geom.width) {
+	if (width > geom.width) {
 		*w_x = (width - geom.width) / 2;
 	}
 	/* Y axis */
-	if(height > geom.height) {
+	if (height > geom.height) {
 		*w_y = (height - geom.height) / 2;
 	}
 }

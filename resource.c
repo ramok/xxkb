@@ -155,8 +155,8 @@ GetRes(XrmDatabase db, char *name, ResType type, Bool required, void *value)
 		for (s = val.addr; *s; s++)
 			if (isupper(*s)) *s = tolower(*s);
 		*((Bool *)value) = (!strncmp(val.addr, "true", 4) ||
-				    !strncmp(val.addr, "yes",  3) ||
-				    !strncmp(val.addr, "on",   2))? True : False;
+							!strncmp(val.addr, "yes",  3) ||
+							!strncmp(val.addr, "on",   2)) ? True : False;
 		break;
 
 	case T_int:
@@ -247,9 +247,9 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 		}
 
 		XWMGeometry(dpy, DefaultScreen(dpy), str_geom, NULL, 0, size_hts,
-                            &tmp_geom.x, &tmp_geom.y,
-                            &tmp_geom.width, &tmp_geom.height,
-                            &geom->gravity);
+					&tmp_geom.x, &tmp_geom.y,
+					&tmp_geom.width, &tmp_geom.height,
+					&geom->gravity);
 		XFree(size_hts);
 	} else {
 		/* Legacy code */
@@ -280,7 +280,7 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 		unsigned int background, foreground;
 		char *font, *label;
 		int w = 3, h = 2;
-                int depth = DefaultDepth(dpy, DefaultScreen(dpy));
+		int depth = DefaultDepth(dpy, DefaultScreen(dpy));
 
 		sprintf(res_name, "%s.label.font", window_name);
 		GetRes(db, res_name, T_string, True, &font);

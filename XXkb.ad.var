@@ -13,7 +13,7 @@ XXkb.mainwindow.xpm.4:
 XXkb.mainwindow.label.font: -misc-*-r-*-20-*
 
 XXkb.*.label.foreground: white
-XXkb.*.label.background: purple
+XXkb.*.label.background: blue4
 XXkb.*.label.enable: no
 
 ! XXkb.mainwindow.in_tray:
