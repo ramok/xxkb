@@ -612,7 +612,6 @@ AddAppToIgnoreList(XXkbConfig *conf, char *app_ident, MatchType ident_type)
 	/* read the current list once again before updating it */
 	XrmInitialize();
 
-printf("%s\n", conf->user_config);
 	db = XrmGetFileDatabase(conf->user_config);
 	if (db == NULL) {
 		warnx("Unable to open resource file `%s'", conf->user_config);
