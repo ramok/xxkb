@@ -7,11 +7,10 @@ LOCAL_LIBRARIES = $(XONLYLIB) -lXpm -lXt
 
 SRCS = xxkb.c resource.c wlist.c
 OBJS = xxkb.o resource.o wlist.o
-
-PIXMAPS = pixmaps
+PIXMAPS = pixmaps\/*.xpm
 
 DEFINES = -DAPPDEFDIR=\"$(DESTDIR)$(XAPPLOADDIR)\"
-CDEBUGFLAGS = -g
+CDEBUGFLAGS = -g -O
 SED = sed
 
 ComplexProgramTarget(xxkb)
@@ -19,4 +18,4 @@ ComplexProgramTarget(xxkb)
 PatchFile(XXkb.ad.var,XXkb.ad,"s#PIXMAPDIR#$(DESTDIR)$(PIXMAPDIR)#g")
 InstallAppDefaults(XXkb)
 
-InstallMultipleByMask($(PIXMAPS),*.xpm,$(PIXMAPDIR))
+InstallMultiple($(PIXMAPS),$(PIXMAPDIR))
