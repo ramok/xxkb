@@ -36,7 +36,7 @@ static int win_x = 0, win_y = 0, revert, base_mask;
 static GC gc;
 static XXkbConfig conf;
 static Window root_win, main_win, icon, focused_win;
-static Atom systray_selection_atom, take_focus_atom, wm_del_win_atom, wm_manager_atom, xembed_atom, xembed_info_atom;
+static Atom systray_selection_atom, take_focus_atom, wm_del_win_atom, wm_manager_atom, xembed_atom, xembed_info_atom, utf8_string_atom, net_wm_name_atom, net_window_type_atom;
 static WInfo def_info, *info;
 static kbdState def_state;
 static XErrorHandler DefErrHandler;
@@ -72,7 +72,7 @@ main(int argc, char ** argv)
 	XClassHint	*class_hints;
 	XSetWindowAttributes win_attr;
 	char *display_name, buf[64];
-	unsigned long valuemask;
+	unsigned long valuemask, xembed_info[2] = { 0, 1 };
 	XGCValues values;
 
 	/* Lets begin */
@@ -117,6 +117,9 @@ main(int argc, char ** argv)
 	wm_manager_atom = XInternAtom(dpy, "MANAGER", False);
 	xembed_atom = XInternAtom(dpy, "_XEMBED", False);
 	xembed_info_atom = XInternAtom(dpy, "_XEMBED_INFO", False);
+	net_wm_name_atom = XInternAtom(dpy, "_NET_WM_NAME", False);
+	net_window_type_atom = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE", False);
+	utf8_string_atom = XInternAtom(dpy, "UTF8_STRING", False);
 	
 	DefErrHandler = XSetErrorHandler((XErrorHandler) ErrHandler);
  
@@ -198,6 +201,11 @@ main(int argc, char ** argv)
 
 	/* to fix: fails if mainwindow geometry was not read */
 	XSetWMProtocols(dpy, main_win, &wm_del_win_atom, 1);
+	XChangeProperty(dpy, main_win, net_wm_name_atom, utf8_string_atom,
+					8, PropModeReplace,
+					(unsigned char*) APPNAME, strlen(APPNAME));
+	XChangeProperty(dpy, main_win, xembed_info_atom, xembed_info_atom, 32, 0,
+					(unsigned char *) &xembed_info, 2);
 
 	/* Show window ? */
 	if (conf.controls & WMaker) {
@@ -215,32 +223,29 @@ main(int argc, char ** argv)
 
 	XFree(wm_hints);
 
-	if (conf.tray_type) {
-		Atom r;
+	if (conf.controls & Tray_enable) {
+		Atom atom;
 		int data = 1;
-		if (!strcmp(conf.tray_type, "KDE") ||
-		    !strcmp(conf.tray_type, "GNOME") ) {
-			r = XInternAtom(dpy, "KWM_DOCKWINDOW", False);
-			XChangeProperty(dpy, main_win, r, r, 32, 0,
-							(unsigned char *)&data, 1);
-		} else if (!strcmp(conf.tray_type, "KDE2")) {
-			r = XInternAtom(dpy, "_KDE_NET_WM_SYSTEM_TRAY_WINDOW_FOR", False);
-			XChangeProperty(dpy, main_win, r, XA_WINDOW, 32, 0,
-							(unsigned char *)&data, 1);
-		} else if (!strcmp(conf.tray_type, "KDE3") ||
-		           !strcmp(conf.tray_type, "GNOME2")) {
-			r = XInternAtom(dpy, "_KDE_NET_WM_SYSTEM_TRAY_WINDOW_FOR", False);
-			XChangeProperty(dpy, main_win, r, XA_WINDOW, 32, 0,
-							(unsigned char *)&data, 1);
 
-			systray = GetSystray(dpy);
-			if (systray != None) {
-				DockWindow(dpy, systray, main_win);
-			}
-
-			/* Don't show main window */
-			conf.controls &= ~Main_enable;
+		atom = XInternAtom(dpy, "KWM_DOCKWINDOW", False);
+		if (atom != NULL) {
+			XChangeProperty(dpy, main_win, atom, atom, 32, 0,
+							(unsigned char*) &data, 1);
 		}
+
+		atom = XInternAtom(dpy, "_KDE_NET_WM_SYSTEM_TRAY_WINDOW_FOR", False);
+		if (atom != NULL) {
+			XChangeProperty(dpy, main_win, atom, XA_WINDOW, 32, 0,
+							(unsigned char*) &data, 1);
+		}
+
+		systray = GetSystray(dpy);
+		if (systray != None) {
+			DockWindow(dpy, systray, main_win);
+		}
+
+		/* Don't show main window */
+		conf.controls &= ~Main_enable;
 	}
 
 	/* What events we want */
@@ -556,13 +561,11 @@ main(int argc, char ** argv)
 						&& systray == None) {
 						systray = cmsg_evt->data.l[2];
 						DockWindow(dpy, systray, main_win);
-#ifdef XEMBED_WINDOW	
 					} else if (cmsg_evt->message_type == xembed_atom &&
 							   temp_win == main_win && cmsg_evt->data.l[1] == 0) {
 						/* XEMBED_EMBEDDED_NOTIFY */
 						MoveOrigin(dpy, main_win, &win_x, &win_y);
 						win_update(main_win, &conf, gc, info->state.group, win_x, win_y);
-#endif
 					} else if ((temp_win == main_win || temp_win == icon)
 					           && cmsg_evt->data.l[0] == wm_del_win_atom) {
 						Terminate();
@@ -1092,12 +1095,6 @@ SendDockMessage(Display* dpy, Window w, long message, long data1, long data2, lo
 static void
 DockWindow(Display *dpy, Window systray, Window w)
 {
-#ifdef XEMBED_WINDOW
-	/* Make window embeddable */
-	unsigned long info[2] = { 0, 1 };
-	XChangeProperty(dpy, w, xembed_info_atom, xembed_info_atom, 32, 0,
-					(unsigned char *)&info, 2);
-#endif
 	if (systray != None) {
 		SendDockMessage(dpy, systray, SYSTEM_TRAY_REQUEST_DOCK, w, 0, 0);
 	}

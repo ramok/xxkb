@@ -20,6 +20,7 @@
 
 #define	Forget_window       (1<<14)
 #define	Label_enable        (1<<15)
+#define	Tray_enable         (1<<16)
 
 #define	SYSTEM_TRAY_REQUEST_DOCK    0
 #define	SYSTEM_TRAY_BEGIN_MESSAGE   1
@@ -58,10 +59,9 @@ typedef	struct {
 } XXkbElement;
 
 typedef struct {
-	unsigned int controls;
+	unsigned long controls;
 	int          Base_group, Alt_group, Bell_percent;
 	char*        user_config; /* filename */
-	char*        tray_type;
 	XXkbElement  mainwindow, button;
 	SearchList*  app_lists[sizeof(MatchType)];
 } XXkbConfig;

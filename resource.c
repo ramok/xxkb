@@ -29,16 +29,26 @@
 #include <X11/IntrinsicP.h>
 #endif
 
+#ifdef SVG_GRAPHICS
+#include <gdk-pixbuf-xlib/gdk-pixbuf-xlib.h>
+#include <librsvg/rsvg.h>
+#endif
+
 #include <X11/xpm.h>
 
+#ifdef SVG_GRAPHICS
+#define IMG_TYPE        "img"
+#else
 #define	IMG_TYPE        "xpm"
+#endif
+
 #define	USERDEFFILE     ".xxkbrc"
 
 /* Forward function declarations */
 static SearchList* MakeSearchList(char *string);
 static char* GetAppListName(char *match, char *action);
 static void FreeSearchList(SearchList *list);
-static void LoadImage(Display *dpy, char *filename, Pixmap *map, Pixmap *mask);
+static void LoadImage(Display *dpy, char *filename, Pixmap *map, Pixmap *mask, int width, int height);
 
 #define	countof(a)	(sizeof(a) / sizeof(a[0]))
 
@@ -212,7 +222,7 @@ GetColorRes(Display *dpy, XrmDatabase db, char *name, unsigned int *color)
 }
 
 static void
-GetControlRes(XrmDatabase db, char *name, int *controls, int flag)
+GetControlRes(XrmDatabase db, char *name, unsigned long *controls, unsigned long flag)
 {
 	Bool set;
 	GetRes(db, name, T_bool, True, &set);
@@ -379,12 +389,17 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 		
 		GetRes(db, IMG_TYPE ".path", T_string, True, &imgpath);
 
+#ifdef SVG_GRAPHICS
+		g_type_init();
+		gdk_pixbuf_xlib_init(dpy, DefaultScreen(dpy));
+#endif
+
 		for (i = 0; i < MAX_GROUP; i++) {
 			sprintf(res_name, "%s." IMG_TYPE ".%d", window_name, i + 1);
 			GetRes(db, res_name, T_string, True, &filename);
 			if (filename != NULL && *filename != '\0') {
 				if (*filename == '/') {
-					LoadImage(dpy, filename, &pixmap[i], &shape[i]);
+					LoadImage(dpy, filename, &pixmap[i], &shape[i], geom->width, geom->height);
 				} else {
 					len = strlen(imgpath) + 1 + strlen(filename);
 					fullname = malloc(len + 1);
@@ -397,7 +412,7 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 					}
 
 					sprintf(fullname, "%s/%s", imgpath, filename);
-					LoadImage(dpy, fullname, &pixmap[i], &shape[i]);
+					LoadImage(dpy, fullname, &pixmap[i], &shape[i], geom->width, geom->height);
 
 					free(fullname);
 				}
@@ -524,7 +539,7 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 	GetElementRes(dpy, db, "mainwindow", &conf->mainwindow);
 	if (conf->controls & Main_enable) {
 		GetControlRes(db, "mainwindow.appicon", &conf->controls, WMaker);
-		GetRes(db, "mainwindow.in_tray", T_string, False, &conf->tray_type);
+		GetControlRes(db, "mainwindow.in_tray", &conf->controls, Tray_enable);
 	}
 
 	GetControlRes(db, "button.enable", &conf->controls, Button_enable);
@@ -628,7 +643,7 @@ AddAppToIgnoreList(XXkbConfig *conf, char *app_ident, MatchType ident_type)
 	}
 
 	/* fill in the new list */
-	strcpy(new_list, "\0");
+	*new_list = '\0';
 	if (orig_list != NULL) {
 		strcat(new_list, orig_list);
 		strcat(new_list, " ");
@@ -673,8 +688,26 @@ AddAppToIgnoreList(XXkbConfig *conf, char *app_ident, MatchType ident_type)
 
 
 static void
-LoadImage(Display *dpy, char *filename, Pixmap *pixmap, Pixmap *mask)
+LoadImage(Display *dpy, char *filename, Pixmap *pixmap, Pixmap *mask, int width, int height)
 {
+#ifdef SVG_GRAPHICS
+	GdkPixbuf *pixbuf;
+	GError *error = NULL;
+
+	pixbuf = rsvg_pixbuf_from_file_at_size(filename, width, height, &error);
+	if (pixbuf == NULL) {
+		if (error != NULL) {
+			warnx("SVG file `%s': %s", filename, error->message);
+		} else {
+			warnx("SVG file `%s' is invalid", filename);
+		}
+		return;
+	}
+
+	gdk_pixbuf_xlib_render_pixmap_and_mask(pixbuf, pixmap, mask, 127);
+
+	g_object_unref(G_OBJECT(pixbuf));
+#else
 	int res;
 	Pixmap picture, shape;
 
@@ -700,6 +733,7 @@ LoadImage(Display *dpy, char *filename, Pixmap *pixmap, Pixmap *mask)
 		*mask = shape;
 		break;
 	}
+#endif
 }
 
 

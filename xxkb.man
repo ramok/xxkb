@@ -76,10 +76,7 @@ run \fBxxkb\fR as an animated icon. It is usefull for window managers
 which allow 'to dock' applications.
 .TP 4
 .B XXkb.mainwindow.in_tray
-allow to dock \fBxxkb\fR into a system tray. A value of the option should be
-GNOME, KDE or KDE2 in depend on what environment tray you use. (Unfortunately,
-such docklets have a size less than a default icons size for an xxkb main
-window. If you want to use this option you need another set of icons.)
+allow to dock \fBxxkb\fR into a system tray. A value is either true or false.
 .TP 4
 .B XXkb.mainwindow.geometry
 the geometry ( WIDTHxHEIGHT{+-}XOFF{+-}YOFF ) of the main
