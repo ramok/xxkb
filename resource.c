@@ -31,10 +31,11 @@
 
 #include <X11/xpm.h>
 
+#define	IMG_TYPE        "xpm"
+#define	USERDEFFILE     ".xxkbrc"
 
-/* Forward declarations */
+/* Forward function declarations */
 static SearchList* MakeSearchList(char *string);
-static char* PrependProgramName(char *string);
 static char* GetAppListName(char *match, char *action);
 static void FreeSearchList(SearchList *list);
 static void LoadImage(Display *dpy, char *filename, Pixmap *map, Pixmap *mask);
@@ -126,7 +127,7 @@ GetRes(XrmDatabase db, char *name, ResType type, Bool required, void *value)
 {
 	XrmValue val;
 	Bool ok = False;
-	char *type_ret, *s, *full_res_name;
+	char *type_ret, *full_res_name;
 	size_t len;
 
 	full_res_name = PrependProgramName(name);
@@ -148,25 +149,26 @@ GetRes(XrmDatabase db, char *name, ResType type, Bool required, void *value)
 	switch (type) {
 	case T_string:
 		len = strlen(val.addr);
-		*((char **)value) = malloc(len + 1);
-		if (*((char**)value) == NULL) err(1, NULL);
-		strcpy(*((char**)value), val.addr);
+		*((char**) value) = malloc(len + 1);
+		if (*((char**) value) == NULL) {
+			err(1, NULL);
+		}
+		strcpy(*((char**) value), val.addr);
 		break;
 
 	case T_bool:
-		for (s = val.addr; *s; s++)
-			if (isupper(*s)) *s = tolower(*s);
-		*((Bool *)value) = (!strncmp(val.addr, "true", 4) ||
-							!strncmp(val.addr, "yes",  3) ||
-							!strncmp(val.addr, "on",   2)) ? True : False;
+		*((Bool*) value) =
+			(strncasecmp(val.addr, "true", 4) == 0 ||
+			 strncasecmp(val.addr, "yes", 3) == 0 ||
+			 strncasecmp(val.addr, "on", 2) == 0);
 		break;
 
 	case T_int:
-		*((int *)value) = strtol(val.addr, (char**)NULL, 10);
+		*((int*) value) = strtol(val.addr, (char**) NULL, 10);
 		break;
 
 	case T_ulong:
-		*((unsigned long *)value) = strtoul(val.addr, (char**)NULL, 16);
+		*((unsigned long*) value) = strtoul(val.addr, (char**) NULL, 16);
 		break;
 	}
 }
@@ -225,7 +227,6 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 {
 	int i;
 	Bool labels_enabled;
-	size_t len;
 	char res_name[64], *str_geom, *str_gravity;
 	Pixmap *pixmap = element->pictures;
 	Pixmap *shape = element->shapemask;
@@ -287,11 +288,10 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 		Pixmap    pixId;
 		XGCValues values;
 		XFontStruct* font_struct = NULL;
-		unsigned long valuemask = 0; /* No data in "values" */
+		unsigned long valuemask;
 		unsigned int background, foreground;
 		char *font, *label;
-		int w = 3, h = 2;
-		int depth = DefaultDepth(dpy, DefaultScreen(dpy));
+		int w = 3, h = 2, depth, scr;
 
 		sprintf(res_name, "%s.label.font", window_name);
 		GetRes(db, res_name, T_string, True, &font);
@@ -327,8 +327,13 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 				}
 			}
 
-			pixId = XCreatePixmap(dpy, RootWindow(dpy, DefaultScreen(dpy)),
+			scr = DefaultScreen(dpy);
+			depth = DefaultDepth(dpy, scr);
+			pixId = XCreatePixmap(dpy, RootWindow(dpy, scr),
 								  geom->width, geom->height, depth);
+
+			valuemask = 0;
+			memset(&values, 0, sizeof(XGCValues));
 			gc = XCreateGC(dpy, pixId, valuemask, &values);
 
 			/* Clear the box. Fill it with a background color */
@@ -340,8 +345,7 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 
 			/* Load and set the font */
 			font_struct = XLoadQueryFont(dpy, font);
-			if (font_struct != NULL)
-			{
+			if (font_struct != NULL) {
 				XSetFont(dpy, gc, font_struct->fid);
 
 				h = (geom->width -
@@ -370,18 +374,19 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 		/*
 		 * images
 		 */
-		char res_name[64], *filename, *fullname, *xpmpath;
+		char res_name[64], *filename, *fullname, *imgpath;
+		size_t len;
 		
-		GetRes(db, "xpm.path", T_string, True, &xpmpath);
+		GetRes(db, IMG_TYPE ".path", T_string, True, &imgpath);
 
 		for (i = 0; i < MAX_GROUP; i++) {
-			sprintf(res_name, "%s.xpm.%d", window_name, i + 1);
+			sprintf(res_name, "%s." IMG_TYPE ".%d", window_name, i + 1);
 			GetRes(db, res_name, T_string, True, &filename);
 			if (filename != NULL && *filename != '\0') {
 				if (*filename == '/') {
 					LoadImage(dpy, filename, &pixmap[i], &shape[i]);
 				} else {
-					len = strlen(xpmpath) + 1 + strlen(filename);
+					len = strlen(imgpath) + 1 + strlen(filename);
 					fullname = malloc(len + 1);
 					if (fullname == NULL) {
 						warn(NULL);
@@ -391,7 +396,7 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 						continue;
 					}
 
-					sprintf(fullname, "%s/%s", xpmpath, filename);
+					sprintf(fullname, "%s/%s", imgpath, filename);
 					LoadImage(dpy, fullname, &pixmap[i], &shape[i]);
 
 					free(fullname);
@@ -404,7 +409,7 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 			}
 		}
 
-		free(xpmpath);
+		free(imgpath);
 	}
 }
 
@@ -426,6 +431,9 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 	char *homedir, *filename;
 	char *str_list, *res_app_list, res_ctrls[256];
 	int i, j;
+#ifndef XT_RESOURCE_SEARCH
+	size_t len;
+#endif
   
 	homedir = getenv("HOME");
 
@@ -596,8 +604,9 @@ AddAppToIgnoreList(XXkbConfig *conf, char *app_ident, MatchType ident_type)
 	}
 
 	res_name = GetAppListName(MatchTable[ident_type].name, "ignore");
-	if (res_name == NULL)
+	if (res_name == NULL) {
 		return;
+	}
 
 	len = strlen(app_ident);
 
@@ -704,7 +713,7 @@ LoadImage(Display *dpy, char *filename, Pixmap *pixmap, Pixmap *mask)
  *     a NULL pointer on failure.
  */
 
-#define	IS_SEPARATOR(a)		((a == ' ') || (a == '\t'))
+#define	IS_SEPARATOR(a)		(((a) == ' ') || ((a) == '\t'))
 #define	IS_NOT_SEPARATOR(a)	(!IS_SEPARATOR(a))
 
 static SearchList*
@@ -723,15 +732,12 @@ MakeSearchList(char *str)
 	}
 
 	/* initialize the list structure */
-	ret->action = (ListAction)0;
-	ret->type = (MatchType)0;
-	ret->num = 0;
-	ret->idx = NULL;
-	ret->list = NULL;
-	ret->next = NULL;
+	memset(ret, 0, sizeof(SearchList));
 
 	len = strlen(str);
-	if (len == 0) return ret;
+	if (len == 0) {
+		return ret;
+	}
 
 	ret->list = malloc(len + 1);
 	if (ret->list == NULL) {
@@ -754,7 +760,8 @@ MakeSearchList(char *str)
 		*j++ = '\0';
 		while (IS_SEPARATOR(*i)) {
 			i++;
-			if (!(--len)) break;
+			if (!(--len))
+				break;
 		}
 	}
 	ret->num = count;
@@ -786,7 +793,8 @@ MakeSearchList(char *str)
 static void
 FreeSearchList(SearchList *list)
 {
-	if (list == NULL) return;
+	if (list == NULL)
+		return;
 	free(list->list);
 	free(list->idx);
 	free(list);
@@ -818,32 +826,4 @@ GetAppListName(char *match, char *action)
 	sprintf(res_name, res_patt, match, action);
 
 	return res_name;
-}
-
-
-/*
- * PrependProgramName
- *     Prepends a program name to the string.
- *
- * Returns
- *     a new string, which must be freed by the caller.
- *     Exits the process if fails, which should never happen.
- */
-
-static char*
-PrependProgramName(char *string)
-{
-	size_t len;
-	char *result;
-
-	len = strlen(APPNAME) + 1 + strlen(string);
-
-	result = malloc(len + 1);
-	if (result == NULL) err(1, NULL);
-
-	strcpy(result, APPNAME);
-	strcat(result, ".");
-	strcat(result, string);
-
-	return result;
 }

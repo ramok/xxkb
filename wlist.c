@@ -129,8 +129,9 @@ win_free_list(void)
 
 	while (pt != NULL) {
 		tmp = pt->next;
-		if (pt->button)
+		if (pt->button) {
 			XDestroyWindow(dpy, pt->button);
+		}
 		free(pt);
 		pt = tmp;  
 	}

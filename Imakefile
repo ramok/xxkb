@@ -5,11 +5,12 @@ BINDIR = $(BASEDIR)/bin
 PIXMAPDIR = $(BASEDIR)/share/xxkb
 LOCAL_LIBRARIES = $(XONLYLIB) -lXpm -lXt
 
-SRCS = xxkb.c resource.c wlist.c
+#SRCS = xxkb.c resource.c wlist.c
 OBJS = xxkb.o resource.o wlist.o
 PIXMAPS = pixmaps/\*.xpm
 
-DEFINES = -DAPPDEFDIR=\"$(DESTDIR)$(XAPPLOADDIR)\"
+DEFINES = -DAPPDEFDIR=\"$(DESTDIR)$(XAPPLOADDIR)\" -DAPPDEFFILE=\"XXkb\" \
+	-DXT_RESOURCE_SEARCH -DXEMBED_WINDOW
 CDEBUGFLAGS = -O2 -Wall
 SED = sed
 
