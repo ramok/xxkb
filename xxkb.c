@@ -194,9 +194,11 @@ main(int argc, char ** argv)
 		size_hints->y = geom.y;
 		size_hints->flags = USPosition;
 	}
-	size_hints->base_width = size_hints->min_width = geom.width;
-	size_hints->base_height = size_hints->min_height = geom.height;
-	size_hints->flags |= PBaseSize | PMinSize;
+	size_hints->base_width = size_hints->min_width =
+		size_hints->max_width = geom.width;
+	size_hints->base_height = size_hints->min_height =
+		size_hints->max_height = geom.height;
+	size_hints->flags |= PBaseSize | PMinSize | PMaxSize;
 	XSetNormalHints(dpy, main_win, size_hints);
 	XFree(size_hints);
 
