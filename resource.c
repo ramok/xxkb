@@ -378,8 +378,8 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 
 	GetControlRes(db, "mainwindow.enable", &conf->controls, Main_enable);
 	/* to fix: move into if-case */
-	GetPixmapRes(dpy, db, xpmpath, "mainwindow", &conf->pictures);
-	GetGeometryRes(dpy, db, "mainwindow", &conf->main_geom);
+	GetPixmapRes(dpy, db, xpmpath, "mainwindow", &conf->mainwindow.pictures);
+	GetGeometryRes(dpy, db, "mainwindow", &conf->mainwindow.geometry);
 	if (conf->controls & Main_enable) {
 		GetControlRes(db, "mainwindow.appicon", &conf->controls, WMaker);
 		GetRes(db, "mainwindow.in_tray", T_string, False, &conf->tray_type);
@@ -387,8 +387,8 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 
 	GetControlRes(db, "button.enable", &conf->controls, Button_enable);
 	if (conf->controls & Button_enable) {
-		GetPixmapRes(dpy, db, xpmpath, "button", &conf->pictures[MAX_GROUP]);
-		GetGeometryRes(dpy, db, "button", &conf->but_geom);
+		GetPixmapRes(dpy, db, xpmpath, "button", &conf->button.pictures);
+		GetGeometryRes(dpy, db, "button", &conf->button.geometry);
 	}
 	free(xpmpath);
 
@@ -541,15 +541,15 @@ LoadImage(Display *dpy, char *filename, Pixmap *pixmap)
 	res = XpmReadFileToImage(dpy, filename, &picture, NULL, NULL);
 	switch (res) {
 	case XpmOpenFailed:
-		warnx("Xpm file open failed: %s", filename);
+		warnx("Unable to open xpm file `%s'", filename);
 		break;
 
 	case XpmFileInvalid:
-		warnx("Xpm file is invalid: %s", filename);
+		warnx("Xpm file `%s' is invalid", filename);
 		break;
 
 	case XpmNoMemory:
-		warnx("No memory for open xpm file: %s", filename);
+		warnx("No memory for open xpm file `%s'", filename);
 		break;
 
 	default:

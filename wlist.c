@@ -44,10 +44,11 @@ win_update(win, gc, group)
 	GC		gc;
 	int		group;
 {
-	if (win && conf.pictures[group])
-		XCopyArea(dpy, conf.pictures[group], win, gc,
+	if (win && conf.mainwindow.pictures[group])
+		XCopyArea(dpy, conf.mainwindow.pictures[group], win, gc,
 				  0, 0,
-				  conf.main_geom.width, conf.main_geom.height,
+				  conf.mainwindow.geometry.width,
+				  conf.mainwindow.geometry.height,
 				  0, 0);
 }
 
@@ -57,10 +58,11 @@ button_update(win, gc, group)
 	GC		gc;
 	int		group;
 {
-	if (win && conf.pictures[group + MAX_GROUP])
-		XCopyArea(dpy, conf.pictures[group + MAX_GROUP], win, gc,
+	if (win && conf.button.pictures[group])
+		XCopyArea(dpy, conf.button.pictures[group], win, gc,
 				  0, 0,
-				  conf.but_geom.width, conf.but_geom.height,
+				  conf.button.geometry.width,
+				  conf.button.geometry.height,
 				  0, 0);
 }
 

@@ -41,7 +41,7 @@ typedef int  ListAction;
 #define InitAltGrp (1<<3)
 #define Ignore     (1<<4)
 
-typedef struct _SearchList {
+typedef struct {
 	ListAction	action;
 	MatchType	type;
 	int			num;
@@ -49,14 +49,21 @@ typedef struct _SearchList {
 	char		*list;
 } SearchList;
 
-typedef struct __XXkbConfig {
+typedef	struct {
+	Geometry geometry;
+	Pixmap   pictures[MAX_GROUP];
+	char*    labels[MAX_GROUP];
+	char*    font;
+	unsigned long	foreground, background;
+} XXkbElement;
+
+typedef struct {
 	unsigned int controls;
 	int          Base_group, Alt_group, Bell_percent;
-	Geometry     main_geom, but_geom;
-	SearchList*  app_lists[sizeof(MatchType)];
 	char*        user_config; /* filename */
 	char*        tray_type;
-	Pixmap       pictures[2*MAX_GROUP];
+	XXkbElement  mainwindow, button;
+	SearchList*  app_lists[sizeof(MatchType)];
 } XXkbConfig;
 
 

@@ -107,7 +107,7 @@ main(int argc, char ** argv)
 	}
 
 	/* My MAIN window */
-	geom = conf.main_geom;
+	geom = conf.mainwindow.geometry;
 	if (geom.mask & (XNegative|YNegative)) {
 		int x,y;
 		unsigned int width, height, bord, dep;
@@ -475,9 +475,11 @@ Terminate()
 	win_free_list();
 	XFreeGC(dpy,gc);
 
-	for (i = 0; i < 2 * MAX_GROUP; i++) {
-		if (conf.pictures[i] != NULL)
-			XFreePixmap(dpy, conf.pictures[i]);
+	for (i = 0; i < MAX_GROUP; i++) {
+		if (conf.mainwindow.pictures[i] != NULL)
+			XFreePixmap(dpy, conf.mainwindow.pictures[i]);
+		if (conf.button.pictures[i] != NULL)
+			XFreePixmap(dpy, conf.button.pictures[i]);
 	}
 
 	if (icon) XDestroyWindow(dpy, icon);
@@ -559,7 +561,7 @@ MakeButton(Window parent)
 	int x, y;
 	unsigned int width, height, bord, dep;
 	XSetWindowAttributes attr;
-	Geometry geom = conf.but_geom;
+	Geometry geom = conf.button.geometry;
 
 	parent = GetGrandParent(parent);
 	if (parent == (Window) 0)
