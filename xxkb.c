@@ -1,6 +1,11 @@
 /* -*- tab-width: 4; c-basic-offset: 4; -*- */
-/* xxkb  - XKB keyboard indicator/switcher */
-/* (c)  1999 - 2003 Ivan Pascal <pascal@tsu.ru>   */
+/*
+ * xxkb.c
+ *
+ *     Main module of the xxkb program.
+ *
+ *     Copyright (c) 1999-2003, by Ivan Pascal <pascal@tsu.ru>
+ */
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -20,16 +25,13 @@ static XtAppContext app_cont;
 
 XXkbConfig conf;
 
-Display *dpy; int scr;
+Display *dpy;
+int scr;
 GC gc;
 XkbEvent ev;
 
-Window root, MainWin, icon, win, focused, base_mask;
+Window RootWin, MainWin, icon, win, focused, base_mask;
 int revert, grp;
-XWMHints *wm_hints;
-XSizeHints *size_hints;
-XClassHint class_hints;
-char *AppName = APPNAME;
 Atom take_focus_atom, wm_del_win;
 
 WInfo def_info, *info, *tmp_info;
@@ -38,7 +40,10 @@ XFocusChangeEvent focused_event;
 XErrorHandler DefErrHandler;
 
 /* Forward declaration */
-static ListAction FindAppList(Window w);
+static ListAction GetWindowAction(Window w);
+static char* GetWindowIdent(Window appwin, MatchType type);
+static MatchType GetTypeFromState(unsigned int state);
+static void IgnoreWindow(WInfo *info, MatchType type);
 
 int
 main(int argc, char ** argv)
@@ -46,36 +51,41 @@ main(int argc, char ** argv)
 	int  xkbEventType, xkbError, reason_rtrn, mjr, mnr;
 	Bool fout_flag = False;
 	Geometry geom;
-	Atom protocols[1];
-  
+	XWMHints	*wm_hints;
+	XSizeHints	*size_hints;
+	XClassHint	*class_hints;
+
 	/* Lets begin */
-	dpy = XkbOpenDisplay( "", &xkbEventType, &xkbError,
-			      NULL, NULL, &reason_rtrn); 
+	dpy = XkbOpenDisplay("", &xkbEventType, &xkbError, NULL, NULL, &reason_rtrn); 
 	if (!dpy) {
-		printf("Can't connect to X-server: %s\n", getenv("DISPLAY"));
+		warnx("Can't connect to X-server: %s", getenv("DISPLAY"));
 		switch (reason_rtrn) {
 		case XkbOD_BadLibraryVersion :
 		case XkbOD_BadServerVersion :
-			printf("xxkb was compiled with XKB version %d.%02d\n",
-			       XkbMajorVersion,XkbMinorVersion);
-			printf("But %s uses incompatible version %d.%02d\n",
-			       reason_rtrn == XkbOD_BadLibraryVersion ? "Xlib" : "Xserver",
-			       mjr,mnr);
+			warnx("xxkb was compiled with XKB version %d.%02d",
+				  XkbMajorVersion,XkbMinorVersion);
+			warnx("But %s uses incompatible version %d.%02d",
+				  reason_rtrn == XkbOD_BadLibraryVersion ? "Xlib" : "Xserver",
+				  mjr,mnr);
 			break;
+
 		case XkbOD_ConnectionRefused :
-			printf("Connection refused\n");
+			warnx("Connection refused");
 			break;
+
 		case XkbOD_NonXkbServer:
-			printf("XKB extension not present\n");
+			warnx("XKB extension not present");
 			break;
+
 		default:
-			printf("Unknown error %d from XkbOpenDisplay\n", reason_rtrn);
+			warnx("Unknown error %d from XkbOpenDisplay", reason_rtrn);
+			break;
 		}
 		exit(1);
 	}    
 
 	scr = DefaultScreen(dpy);
-	root = RootWindow(dpy, scr);
+	RootWin = RootWindow(dpy, scr);
 	base_mask = ~(dpy->resource_mask);
 	take_focus_atom = XInternAtom(dpy, "WM_TAKE_FOCUS", True);
 	wm_del_win = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
@@ -85,104 +95,116 @@ main(int argc, char ** argv)
 	focused_event.display = dpy;
 
 	/* My configuration*/
+	memset(&conf, 0, sizeof(conf));
 
 #ifdef XT_RESOURCE_SEARCH
 	app_cont = XtCreateApplicationContext();
-	XtDisplayInitialize(app_cont, dpy, AppName, AppName, NULL, 0, &argc, argv);
+	XtDisplayInitialize(app_cont, dpy, APPNAME, APPNAME, NULL, 0, &argc, argv);
 #endif
-	GetConfig(dpy, &conf);
+	if (GetConfig(dpy, &conf) != 0) {
+		warnx("Unable to initialize");
+		return;
+	}
 
 	/* My MAIN window */
 	geom = conf.main_geom;
 	if (geom.mask & (XNegative|YNegative)) {
-		int x,y; unsigned int width, height, bord, dep;
+		int x,y;
+		unsigned int width, height, bord, dep;
 		Window rwin;
-		XGetGeometry(dpy, root, &rwin,
-			     &x, &y, &width, &height, &bord, &dep);
+		XGetGeometry(dpy, RootWin, &rwin, &x, &y, &width, &height, &bord, &dep);
 		if (geom.mask & XNegative)
 			geom.x = width + geom.x - geom.width;
 		if (geom.mask & YNegative)
 			geom.y = height + geom.y - geom.height;
 	}
 
-	MainWin = XCreateSimpleWindow( dpy, root,
-				       geom.x, geom.y,
-				       geom.width, geom.height, 0,
-				       BlackPixel(dpy, scr),
-				       WhitePixel(dpy, scr));
-    
+	MainWin = XCreateSimpleWindow(dpy, RootWin, geom.x, geom.y,
+								  geom.width, geom.height, 0,
+								  BlackPixel(dpy, scr), WhitePixel(dpy, scr));
+
+	XStoreName(dpy, MainWin, APPNAME);
+	XSetCommand(dpy, MainWin, argv, argc);
+
+	/* WMHints */
 	wm_hints = XAllocWMHints();
+	if (wm_hints == NULL) errx(1, "Unable to allocate WM hints");
 	wm_hints->window_group = MainWin;
 	wm_hints->input = False;
 	wm_hints->flags = InputHint | WindowGroupHint;
 	XSetWMHints(dpy, MainWin, wm_hints);
-	XStoreName(dpy, MainWin, AppName);
 
-	class_hints.res_name  = AppName;
-	class_hints.res_class = AppName;
-	XSetClassHint(dpy, MainWin, &class_hints);
-	XSetCommand(dpy, MainWin, argv, argc);
-  
+	/* ClassHint */
+	class_hints = XAllocClassHint();
+	if (class_hints == NULL) errx(1, "Unable to allocate class hints");
+	class_hints->res_name  = APPNAME;
+	class_hints->res_class = APPNAME;
+	XSetClassHint(dpy, MainWin, class_hints);
+	XFree(class_hints);
+
+	/* SizeHints */
 	if (geom.mask & (XValue|YValue)) {
 		size_hints = XAllocSizeHints();
+		if (size_hints == NULL) errx(1, "Unable to allocate size hints");
 		size_hints->x = geom.x;
 		size_hints->y = geom.y;
 		size_hints->flags = USPosition;
 		XSetNormalHints(dpy, MainWin, size_hints);
+		XFree(size_hints);
 	}
 
-	*protocols = wm_del_win;
-	XSetWMProtocols(dpy, MainWin, protocols, 1);
+	/* to fix: fails if mainwindow geometry was not read */
+	XSetWMProtocols(dpy, MainWin, &wm_del_win, 1);
 
 	/* Show window ? */
-	if (conf.controls&WMaker) {
-		icon = XCreateSimpleWindow(dpy, MainWin,
-					   geom.x, geom.y,
-					   geom.width, geom.height, 0,
-					   BlackPixel(dpy, scr),
-					   WhitePixel(dpy, scr));
+	if (conf.controls & WMaker) {
+		icon = XCreateSimpleWindow(dpy, MainWin, geom.x, geom.y,
+								   geom.width, geom.height, 0,
+								   BlackPixel(dpy, scr), WhitePixel(dpy, scr));
 
-		wm_hints->icon_window  = icon;
+		wm_hints->icon_window = icon;
 		wm_hints->initial_state = WithdrawnState;
-		wm_hints->flags = wm_hints->flags | StateHint | IconWindowHint;
+		wm_hints->flags |= StateHint | IconWindowHint;
 		XSetWMHints(dpy, MainWin, wm_hints);
 	}
-	else icon = (Window) 0;
+	else
+		icon = (Window) 0;
+
+	XFree(wm_hints);
 
 	if (conf.tray_type) {
 		Atom r;
 		int data = 1;
 		if (! strcmp(conf.tray_type, "KDE") ||
 		    ! strcmp(conf.tray_type, "GNOME") ) {
-
 			r = XInternAtom(dpy, "KWM_DOCKWINDOW", False);
 			XChangeProperty(dpy, MainWin, r, r, 32, 0,
-					(unsigned char *)&data, 1);
+							(unsigned char *)&data, 1);
 		} else if (! strcmp(conf.tray_type, "KDE2")) {
 			r = XInternAtom(dpy, "_KDE_NET_WM_SYSTEM_TRAY_WINDOW_FOR", False);
 			XChangeProperty(dpy, MainWin, r, XA_WINDOW, 32, 0,
-					(unsigned char *)&data, 1);
+							(unsigned char *)&data, 1);
 		}
 	}
 
-
-  
-	if (conf.controls&Main_enable) XMapWindow(dpy, MainWin);
+	if (conf.controls & Main_enable)
+		XMapWindow(dpy, MainWin);
 
 	/* What events we want */
 	XkbSelectEventDetails(dpy, XkbUseCoreKbd, XkbStateNotify,
-			      XkbAllStateComponentsMask, XkbGroupStateMask);
-	if (conf.controls&When_create)
-		XSelectInput(dpy, root, SubstructureNotifyMask);
+						  XkbAllStateComponentsMask, XkbGroupStateMask);
+	if (conf.controls & When_create)
+		XSelectInput(dpy, RootWin, SubstructureNotifyMask);
 
 	XSelectInput(dpy, MainWin, ExposureMask | ButtonPressMask);
-	if (icon) XSelectInput(dpy, icon, ExposureMask | ButtonPressMask);
+	if (icon)
+		XSelectInput(dpy, icon, ExposureMask | ButtonPressMask);
 
 	getGC(MainWin, &gc);
 
 	/* set current defaults */
 	def_state.group = conf.Base_group;
-	def_state.alt =   conf.Alt_group;  
+	def_state.alt = conf.Alt_group;  
 
 	def_info.win = icon ? icon : MainWin;
 	def_info.button = 0;
@@ -190,20 +212,24 @@ main(int argc, char ** argv)
 
 	Reset();
 
-	if (conf.controls&When_start) {
-		Window rwin, parent, *children, *child, app; int num; 
-		XQueryTree(dpy, root, &rwin, &parent, &children, &num);
+	if (conf.controls & When_start) {
+		int num; 
+		Window rwin, parent, *children, *child, app;
+		XQueryTree(dpy, RootWin, &rwin, &parent, &children, &num);
 		child = children;
-		while (num) {
+		while (num != NULL) {
 			app = (Window) 0;
 			GetAppWindow(*child, &app);
-			if (app) AddWindow(app, *child);
-			child++; num--;
+			if (app != NULL)
+				AddWindow(app, *child);
+			child++;
+			num--;
 		}
-		if (children) XFree(children);
+
+		XFree(children);
 		XGetInputFocus(dpy, &focused, &revert);
 		info = win_find(focused);
-		if (!info) info = &def_info;
+		if (info == NULL) info = &def_info;
 	}
 
 	/* Main Loop */
@@ -215,20 +241,20 @@ main(int argc, char ** argv)
 			case XkbStateNotify :
 				grp = ev.state.locked_group;
 
-				if ((conf.controls&When_change) && !fout_flag) {
+				if ((conf.controls & When_change) && !fout_flag) {
 					XGetInputFocus(dpy, &focused, &revert);
 					if ((focused == None) || (focused == PointerRoot))
 						break;
 					if (focused != info->win) {
 						tmp_info = AddWindow(focused, focused);
-						if (tmp_info) {
+						if (tmp_info != NULL) {
 							info = tmp_info; info->state.group = grp;
 						}
 					}
 				}
 				fout_flag = False;
 	  
-				if ((conf.controls&Two_state) && ev.state.keycode) {
+				if ((conf.controls & Two_state) && ev.state.keycode) {
 					int g_min, g_max;
 					if (conf.Base_group < info->state.alt) {
 						g_min = conf.Base_group; g_max = info->state.alt;
@@ -244,18 +270,21 @@ main(int argc, char ** argv)
 					}
 				}
 				info->state.group = grp;
-				if ((conf.controls&Two_state) &&
+				if ((conf.controls & Two_state) &&
 				    (grp != conf.Base_group) && (grp != info->state.alt))
 					info->state.alt = grp;
 
-				if (info->button)
-					update_button(info->button, gc, grp);
-				update_window(MainWin, gc, grp);
-				if (icon) update_window(icon, gc, grp);
-				if (conf.controls&Bell_enable)
+				if (info->button != NULL)
+					button_update(info->button, gc, grp);
+				win_update(MainWin, gc, grp);
+				if (icon != NULL)
+					win_update(icon, gc, grp);
+				if (conf.controls & Bell_enable)
 					XBell(dpy, conf.Bell_percent);
 				break;
-			default: break;
+
+			default:
+				break;
 			}
 		} /* xkb events */
 		else
@@ -264,81 +293,92 @@ main(int argc, char ** argv)
 				if (ev.core.xexpose.count != 0) break;
 				win = ev.core.xexpose.window;
 				if ((win == MainWin) || (icon && (win == icon)))
-					update_window(win, gc, info->state.group);
+					win_update(win, gc, info->state.group);
 				else {
 					tmp_info = button_find(win);
-					if (tmp_info) update_button(win, gc, tmp_info->state.group);
+					if (tmp_info)
+						button_update(win, gc, tmp_info->state.group);
 				}
 				break;
+
 			case ButtonPress:
 				win = ev.core.xbutton.window;
 				switch (ev.core.xbutton.button) {
 				case Button1:
 					if ((win == info->button) || (win == MainWin) ||
 					    (icon && (win == icon))) {
-						if (conf.controls&Two_state) {
+						if (conf.controls & Two_state) {
 							if (info->state.group == conf.Base_group)
 								XkbLockGroup(dpy, XkbUseCoreKbd, info->state.alt);
 							else
 								XkbLockGroup(dpy, XkbUseCoreKbd, conf.Base_group);
 						}
-						else
-							if (conf.controls&But1_reverse) {
+						else {
+							if (conf.controls & But1_reverse)
 								XkbLockGroup(dpy, XkbUseCoreKbd, info->state.group - 1);
-							} else {
+							else
 								XkbLockGroup(dpy, XkbUseCoreKbd, info->state.group + 1);
-							}
-					}
-					break;
-				case Button3:
-					if ((win == info->button) || (win == MainWin) ||
-					    (icon && (win == icon))) {
-						if (conf.controls&But3_reverse) {
-							XkbLockGroup(dpy, XkbUseCoreKbd, info->state.group - 1);
-						} else {
-							XkbLockGroup(dpy, XkbUseCoreKbd, info->state.group + 1);
 						}
 					}
 					break;
+
+				case Button3:
+					if ((win == info->button) || (win == MainWin) ||
+					    (icon && (win == icon))) {
+						if (conf.controls & But3_reverse)
+							XkbLockGroup(dpy, XkbUseCoreKbd, info->state.group - 1);
+						else
+							XkbLockGroup(dpy, XkbUseCoreKbd, info->state.group + 1);
+					}
+					break;
+
 				case Button2:
 					if ((win != MainWin) && (win != icon)) {
-						if (conf.controls&Button_delete) {
+						if (conf.controls & Button_delete) {
 							XDestroyWindow(dpy, win);
-							if (conf.controls&Forget_window) {
+							if (conf.controls & Forget_window) {
+								MatchType type;
+
+								type = GetTypeFromState(ev.core.xbutton.state);
+								if (type == -1)
+									break;
+
 								if (win == info->button) {
-									AddAppToConfig(info->win, ev.core.xbutton.state);
-									info->ignore = 1;
+									IgnoreWindow(info, type);
 									Reset();
 								} else {
 									tmp_info = button_find(win);
-									if (tmp_info) {
-										AddAppToConfig(tmp_info->win, ev.core.xbutton.state);
-										tmp_info->ignore = 1;
-									}
+									if (tmp_info == NULL)
+										break;
+
+									IgnoreWindow(tmp_info, type);
 								}
 							}
 						}
 						break;
 					}
-					if (conf.controls&Main_delete)
+					if (conf.controls & Main_delete)
 						Terminate();
 				}
 				break;
+
 			case FocusIn:
 				info = win_find(ev.core.xfocus.window);
-				if (!info) {
-					printf ("Oops. FocusEvent from unknown window\n");
+				if (info == NULL) {
+					warnx("Oops. FocusEvent from unknown window\n");
 					info = &def_info;
 				}
-				if (!info->ignore) {
+
+				if (info->ignore == NULL)
 					XkbLockGroup(dpy, XkbUseCoreKbd, info->state.group);
-				} else {
+				else {
 					def_info.state.group = info->state.group;
 					info = &def_info;
 				}
 				break;
+
 			case FocusOut:
-				if (conf.controls&Focus_out) {
+				if (conf.controls & Focus_out) {
 					tmp_info = info;
 					info = &def_info;
 					info->state.group = conf.Base_group; /*???*/
@@ -348,63 +388,75 @@ main(int argc, char ** argv)
 					}
 				}
 				break;
+
 			case ReparentNotify:
 				win = ev.core.xreparent.window;
 				if (win == MainWin ||
-				    ev.core.xreparent.parent == root ||
+				    ev.core.xreparent.parent == RootWin ||
 				    BASE(ev.core.xreparent.parent) == BASE(win) ||
 				    ev.core.xreparent.override_redirect == TRUE ) break;
 
 				AddWindow(win, ev.core.xreparent.parent);
 				break;
+
 			case DestroyNotify:
-				if (ev.core.xdestroywindow.event == root) break;
+				if (ev.core.xdestroywindow.event == RootWin)
+					break;
 
 				win = ev.core.xdestroywindow.window;
-				tmp_info= win_find(win);
-				if (tmp_info) {
+				tmp_info = win_find(win);
+				if (tmp_info != NULL) {
 					win_free(win);
 					if (tmp_info == info) Reset();
 					break;
 				}
 
 				tmp_info = button_find(win);
-				if (tmp_info) tmp_info->button = 0;
+				if (tmp_info != NULL) tmp_info->button = 0;
 				break;
+
 			case ConfigureNotify:
-				if (!ev.core.xconfigure.above || !(conf.controls&Button_enable))
+				if (!ev.core.xconfigure.above
+					|| !(conf.controls & Button_enable))
 					break;
 				tmp_info = button_find(ev.core.xconfigure.above);
-				if (tmp_info)
+				if (tmp_info != NULL)
 					XRaiseWindow(dpy, ev.core.xconfigure.above);
 				break;
+
 			case PropertyNotify:
 				win = ev.core.xproperty.window;
 				tmp_info = win_find(win);
-				if (!tmp_info) {
-					Window rwin, parent, *childrens, *child, app; int num;
+				if (tmp_info == NULL) {
+					Window rwin, parent, *childrens, *child, app;
+					int num;
 					XQueryTree(dpy, win, &rwin, &parent, &childrens, &num);
 					AddWindow(win, parent);
 				}
 				break;
+
 			case ClientMessage:
 				win = ev.core.xclient.window;
 				if (((win == MainWin) || (win == icon))
 				    && ev.core.xclient.data.l[0] == wm_del_win)
 					Terminate();
 				break;
+
 			case CreateNotify:
 			case NoExpose:
 			case UnmapNotify:
 			case MapNotify:
 			case MappingNotify:
 			case GravityNotify:
-				break;  /* Ignore these events */
+				/* Ignore these events */
+				break;
+
 			default:
-				printf("Unknown event %d\n", ev.type);
+				warnx("Unknown event %d", ev.type);
 				break;
 			}
 	}
+
 	return(0);
 }
 
@@ -424,47 +476,28 @@ Terminate()
 	XFreeGC(dpy,gc);
 
 	for (i = 0; i < 2 * MAX_GROUP; i++) {
-		if (conf.pictures[i])
+		if (conf.pictures[i] != NULL)
 			XFreePixmap(dpy, conf.pictures[i]);
 	}
 
 	if (icon) XDestroyWindow(dpy, icon);
-	XDestroyWindow(dpy,MainWin);
+	XDestroyWindow(dpy, MainWin);
 #ifdef XT_RESOURCE_SEARCH
 	XtCloseDisplay(dpy);
 #else
 	XCloseDisplay(dpy);
 #endif
+
 	exit(0);
 }
 
 void
 getGC(Window win, GC * gc)
 {
-	unsigned long valuemask=0; /* No data in ``values'' */
+	unsigned long valuemask = 0; /* No data in ``values'' */
 	XGCValues values;
 	*gc = XCreateGC(dpy, win, valuemask, &values);
 /*	XSetForeground(dpy, *gc, BlackPixel(dpy, scr)); */
-}
-
-void
-update_window(Window win, GC gc, int group)
-{
-	if (conf.pictures[group])
-		XCopyArea(dpy, conf.pictures[group], win, gc,
-			  0, 0,
-			  conf.main_geom.width, conf.main_geom.height,
-			  0, 0);
-}
-
-void
-update_button(Window win, GC gc, int group)
-{
-	if (win && conf.pictures[group+4])
-		XCopyArea(dpy, conf.pictures[group+4], win, gc,
-			  0, 0,
-			  conf.but_geom.width, conf.but_geom.height,
-			  0, 0);
 }
 
 WInfo*
@@ -472,6 +505,7 @@ AddWindow(Window win, Window parent)
 {
 	int ignore = 0;
 	WInfo *info;
+	Status stat;
 	ListAction action;
 	XWindowAttributes attr;
 
@@ -483,38 +517,38 @@ AddWindow(Window win, Window parent)
 	if (!ExpectInput(win))
 		return (WInfo*) 0;
 
-	action = FindAppList(win);
-	if ( ((action&Ignore) && !(conf.controls&Ignore_reverse)) ||
-	     (!(action&Ignore) && (conf.controls&Ignore_reverse)))
+	action = GetWindowAction(win);
+	if ( ((action & Ignore) && !(conf.controls & Ignore_reverse)) ||
+	     (!(action & Ignore) && (conf.controls & Ignore_reverse)))
 		ignore = 1;
 
 	info = win_find(win);
-	if (!info) {
+	if (info == NULL) {
 		info = win_add(win, &def_state);
-		if (!info) return (WInfo*) 0;
-		if (action&AltGrp) {
-			info->state.alt = action & GrpMask;
-		}
-		if (action&InitAltGrp) {
-			info->state.group = info->state.alt;
-		}
+		if (info == NULL) return (WInfo*) 0;
+		if (action & AltGrp) info->state.alt = action & GrpMask;
+		if (action & InitAltGrp) info->state.group = info->state.alt;
 	}
+
 	XGetInputFocus(dpy, &focused, &revert);
-	XSelectInput(dpy, win, FocusChangeMask | StructureNotifyMask |  PropertyChangeMask);
+	XSelectInput(dpy, win, FocusChangeMask | StructureNotifyMask | PropertyChangeMask);
 	if (focused == win) {
 		focused_event.window = win;
 		XSendEvent(dpy, MainWin, 0, 0, (XEvent *) &focused_event);
 	}
 
 	info->ignore = ignore;
-	if ((conf.controls&Button_enable) && (!info->button) && !ignore )
+	if ((conf.controls & Button_enable) && (!info->button) && !ignore )
 		info->button = MakeButton(parent);
 
 /* to be sure that window still exists */
-	if (!XGetWindowAttributes(dpy, win, &attr)) {
+	stat = XGetWindowAttributes(dpy, win, &attr);
+	if (stat == 0) {
+		/* failed */
 		win_free(win);
 		return (WInfo*) 0;
 	}
+
 	return info;
 }
 
@@ -522,22 +556,25 @@ Window
 MakeButton(Window parent)
 {
 	Window button, rwin;
-	int x, y; unsigned int width, height, bord, dep;
+	int x, y;
+	unsigned int width, height, bord, dep;
 	XSetWindowAttributes attr;
 	Geometry geom = conf.but_geom;
-	if ((parent = GetGrandParent(parent)) == (Window) 0)
+
+	parent = GetGrandParent(parent);
+	if (parent == (Window) 0)
 		return (Window) 0;
 
-	XGetGeometry(dpy, parent, &rwin,
-		     &x, &y, &width, &height, &bord, &dep);
+	XGetGeometry(dpy, parent, &rwin, &x, &y, &width, &height, &bord, &dep);
 	x = (geom.mask & XNegative)? width  + geom.x - geom.width  : geom.x;
 	y = (geom.mask & YNegative)? height + geom.y - geom.height : geom.y;
 
-	if ((geom.width > width) || (geom.height > height)) return 0 ;
+	if ((geom.width > width) || (geom.height > height))
+		return 0 ;
 
-	button = XCreateSimpleWindow( dpy, parent,
-				      x, y, geom.width, geom.height, 0,
-				      BlackPixel(dpy, scr), WhitePixel(dpy, scr));
+	button = XCreateSimpleWindow(dpy, parent,
+								 x, y, geom.width, geom.height, 0,
+								 BlackPixel(dpy, scr), WhitePixel(dpy, scr));
 
 	attr.override_redirect = True;
 	attr.win_gravity = geom.gravity;
@@ -546,18 +583,20 @@ MakeButton(Window parent)
 	XSelectInput(dpy, parent, SubstructureNotifyMask);
 	XSelectInput(dpy, button, ExposureMask | ButtonPressMask);
 	XMapRaised(dpy, button);
+
 	return button;
 }
 
 Window
 GetGrandParent(Window w)
 {
-	Window rwin, parent, *child; int num;
+	Window rwin, parent, *child;
+	int num;
 
 	while (1) {
 		if (!XQueryTree(dpy, w, &rwin, &parent, &child, &num))
 			return (Window) 0;
-		if (child) XFree(child);
+		XFree(child);
 		if (parent == rwin) return w;
 		w = parent;
 	}
@@ -566,22 +605,25 @@ GetGrandParent(Window w)
 void
 GetAppWindow(Window win, Window *core)
 {
-	Window rwin, parent, *childrens, *child; int n;
+	Window rwin, parent, *children, *child;
+	int n;
 
-	if (!XQueryTree(dpy, win, &rwin, &parent, &childrens, &n))
+	if (!XQueryTree(dpy, win, &rwin, &parent, &children, &n))
 		return;
-	child = childrens;
+	child = children;
 
-	while(n) {
+	while (n != 0) {
 		if (BASE(*child) != BASE(win)) {
 			*core = *child;
 			break;
 		}
 		GetAppWindow(*child, core);
 		if (*core) break;
-		child++; n--;
+		child++;
+		n--;
 	}
-	if (childrens) XFree(childrens);
+
+	XFree(children);
 }
 
 static Bool
@@ -591,7 +633,7 @@ Compare(char *pattern, char *str)
 	Bool aster = False; 
 
 	do {
-		if ( *i == '*') { 
+		if (*i == '*') { 
 			i++;
 			if (*i == '\0') return True;
 			aster = True; sub = i; lpos = j;
@@ -616,19 +658,21 @@ Compare(char *pattern, char *str)
 }
 
 static ListAction
-searchInList(SearchList *list, char *str)
+searchInList(SearchList *list, char *ident)
 {
 	int i;
 	ListAction ret = 0;
-	while (list) {
-		for (i = 0; i < list->num; i++) {
-			if (Compare(list->idx[i], str)) {
-				ret |= list->action; /*???*/
-				break;
-			}
+
+	if (list == NULL)
+		return 0;
+
+	for (i = 0; i < list->num; i++) {
+		if (Compare(list->idx[i], ident)) {
+			ret |= list->action; /*???*/
+			break;
 		}
-		list = list->next;
 	}
+
 	return ret;
 }
 
@@ -640,59 +684,67 @@ searchInPropList(SearchList *list, Window win)
 	Atom *props, *atoms;
 	ListAction ret = 0;
 
-	while (list) {
-		atoms = (Atom *) calloc(list->num, sizeof(Atom));
-		if (!atoms)
+	if (list == NULL)
+		return 0;
+
+	atoms = (Atom *) calloc(list->num, sizeof(Atom));
+	if (atoms == NULL)
+		return 0;
+
+	XInternAtoms(dpy, list->idx, list->num, False, atoms);
+	for (i = 0, j = 0; i < list->num; i++) {
+		if (atoms[i] != None) {
+			j = 1;
 			break;
-		XInternAtoms(dpy, list->idx, list->num, False, atoms);
-		j = 0;
-		for (i = 0; i < list->num; i++) {
-			if (atoms[i] != None) {
-				j = 1;
-				break;
-			}
 		}
-		if (j != 0) {
-			props = XListProperties(dpy, win, &prop_num);
-			if (props) {
-				for (i = 0; i < list->num; i++) {
-					if (atoms[i] != None) {
-						for (j = 0; j < prop_num; j++) {
-							if (atoms[i] == props[j])
-								ret |= list->action;
-						}
+	}
+	if (j != 0) {
+		props = XListProperties(dpy, win, &prop_num);
+		if (props != NULL) {
+			for (i = 0; i < list->num; i++) {
+				if (atoms[i] != None) {
+					for (j = 0; j < prop_num; j++) {
+						if (atoms[i] == props[j])
+							ret |= list->action;
 					}
 				}
-				XFree(props);
 			}
+			XFree(props);
 		}
-		XFree(atoms);
-		list = list->next;
 	}
+	XFree(atoms);
+
 	return ret;
 }
 
+
+/*
+ * GetWindowAction
+ * Returns
+ *     an action associated with a window.
+ */
+
 static ListAction
-FindAppList(Window w)
+GetWindowAction(Window w)
 {
 	ListAction ret = 0;
 	XClassHint wm_class;
 	char *name;
 
 	if (XGetClassHint(dpy, w, &wm_class)) {
-		ret = searchInList(conf.lists[0], wm_class.res_class);
-		ret |= searchInList(conf.lists[1], wm_class.res_name);
-		Xfree(wm_class.res_name);
-		Xfree(wm_class.res_class);
+		ret = searchInList(conf.app_lists[0], wm_class.res_class);
+		ret |= searchInList(conf.app_lists[1], wm_class.res_name);
+		XFree(wm_class.res_name);
+		XFree(wm_class.res_class);
 	}
 
 	if (XFetchName(dpy, w, &name)) {
 		if (name != NULL) {
-			ret |= searchInList(conf.lists[2], name);
-			Xfree(name);
+			ret |= searchInList(conf.app_lists[2], name);
+			XFree(name);
 		}
 	}
-	ret |= searchInPropList(conf.lists[3], w);
+	ret |= searchInPropList(conf.app_lists[3], w);
 
 	return ret;
 }
@@ -712,78 +764,122 @@ ExpectInput(Window w)
 
 	if (!ok) {
 		Atom *protocols;
-		int n;
-		if (XGetWMProtocols(dpy, w, &protocols, &n)) {
-			int i;
-			for (i = 0; i < n; i++)
+		Status stat;
+		int n, i;
+
+		stat = XGetWMProtocols(dpy, w, &protocols, &n);
+		if (stat != 0) {
+			/* success */
+			for (i = 0; i < n; i++) {
 				if (protocols[i] == take_focus_atom) {
 					ok = True;
 					break;
 				}
+			}
 			XFree(protocols);
 		}
 	}
+
 	return ok;
 }
 
-char*
-GetAppIdent(Window appwin, MatchType type)
-{
-	XClassHint wm_class;
-	char *name;
 
-	if (type == WMName) {
-		if (XFetchName(dpy, appwin, &name)) {
-			return name;
-		} else {
-			return NULL;
+/*
+ * GetWindowIdent
+ * Returns
+ *     the window identifier, which should be freed by the caller.
+ */
+
+static char*
+GetWindowIdent(Window appwin, MatchType type)
+{
+	Status stat;
+	XClassHint wm_class;
+	char *ident = NULL;
+
+	switch (type) {
+	case WMName:
+		XFetchName(dpy, appwin, &ident);
+		break;
+
+	default:
+		stat = XGetClassHint(dpy, appwin, &wm_class);
+		if (stat != 0) {
+			/* success */
+			if (type == WMClassClass) {
+				XFree(wm_class.res_name);
+				ident = wm_class.res_class;
+			} else if (type == WMClassName) {
+				XFree(wm_class.res_class);
+				ident = wm_class.res_name;
+			}
 		}
+		break;
 	}
-	if (XGetClassHint(dpy, appwin, &wm_class)) {
-		if (type == WMClassClass) {
-			Xfree(wm_class.res_name);
-			return wm_class.res_class;
-		} else {
-			Xfree(wm_class.res_class);
-			return wm_class.res_name;
-		}
-	} else {
-		return NULL;
-	}
+
+	return ident;
 }
 
-void
-AddAppToConfig(Window appwin, unsigned int state)
+
+/*
+ * IgnoreWindow
+ *     Appends a window to the ignore list.
+ */
+
+static void
+IgnoreWindow(WInfo *info, MatchType type)
 {
-	char *name = NULL;
+	char *ident;
+
+	ident = GetWindowIdent(info->win, type);
+	if (ident == NULL) {
+		XBell(dpy, conf.Bell_percent);
+		return;
+	}
+
+	AddAppToIgnoreList(&conf, ident, type);
+	info->ignore = 1;
+
+	XFree(ident);
+}
+
+static MatchType
+GetTypeFromState(unsigned int state)
+{
 	MatchType type;
 
 	switch (state & (ControlMask | ShiftMask)) {
 	case 0:
-		return;
+		type = -1;
+		break;
+
 	case ControlMask :
 		type = WMClassClass;
 		break;
+
 	case ShiftMask   :
 		type = WMName;
 		break;
+
 	case ControlMask | ShiftMask:
 		type = WMClassName;
+		break;
 	} 
 
-	name = GetAppIdent(appwin, type);
-	if (name != NULL) {
-		SaveAppInConfig(&conf, name, type);
-		Xfree(name);
-	} else {
-		XBell(dpy, conf.Bell_percent);
-	}
+	return type;
 }
 
 void
 ErrHandler(Display *dpy, XErrorEvent *err)
 {
-	if ((err->error_code == BadWindow) || (err->error_code == BadDrawable))
-		return;
-	(*DefErrHandler)(dpy, err);
+	switch (err->error_code) {
+	case BadWindow:
+	case BadDrawable:
+		/* Ignore these errors */
+		break;
+
+	default:
+		(*DefErrHandler)(dpy, err);
+		break;
+	}
 }

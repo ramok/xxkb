@@ -1,12 +1,24 @@
 /* -*- tab-width: 4; c-basic-offset: 4; -*- */
+/*
+ * resource.c
+ *
+ *     This module deals with the xxkb configuration.
+ *
+ *     Copyright (c) 1999-2003, by Ivan Pascal <pascal@tsu.ru>
+ *
+ *   2003-07-27:
+ *     The X Resources subsystem is used to store the configuration.
+ *     Settings from $XHOME/app-defaults/XXkb may be overwritten by
+ *     the user in $HOME/.xxkbrc file.
+ */
 
-#include <X11/Xlib.h>
-#include <X11/Xresource.h>
-#include <X11/Xutil.h>
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
 
+#include <X11/Xlib.h>
+#include <X11/Xresource.h>
+#include <X11/Xutil.h>
 #include <X11/XKBlib.h>
 
 #include "wlist.h"
@@ -16,225 +28,204 @@
 #include <X11/IntrinsicP.h>
 #endif
 
+#include <X11/xpm.h>
+
+
 /* Forward declarations */
-int load_image(Display *dpy, char* name, Pixmap *map);
-void err_malloc(void);
-#define ERR_MALLOC	err_malloc()
+static SearchList* MakeSearchList(char *string);
+static char* PrependProgramName(char *string);
+static char* GetAppListName(char *match, char *action);
+static void FreeSearchList(SearchList *list);
+static int LoadImage(Display *dpy, char *filename, Pixmap *map);
 
 #define	countof(a)	(sizeof(a) / sizeof(a[0]))
 
 
-/* Gravity names */
+/* Deprecated. Keep temporary for compatibility. */
+static char  *ignoreMatch[] = {
+	"ignore.wm_class.class",
+	"ignore.wm_class.name",
+	"ignore.wm_name",
+	NULL
+};
+
+/* Deprecated. Maintained only for compatibility reasons. */
 struct {
 	char *name;
-	int  len;
 	int  res;
-} GravityTab[] = {{"NorthEast", 9, NorthEastGravity},
-		 {"NorthWest", 9, NorthWestGravity},
-		 {"North",     5, NorthGravity},
-		 {"SouthEast", 9, SouthEastGravity},
-		 {"SouthWest", 9, SouthWestGravity},
-		 {"South",     5, SouthGravity},
-		 {"East",      4, EastGravity},
-		 {"West",      4, WestGravity},
-		 {"Center",    6, CenterGravity},		
-		 {NULL, 0, 0}};
+} GravityTable[] = {
+	{ "NorthEast", NorthEastGravity },
+	{ "NorthWest", NorthWestGravity },
+	{ "North",     NorthGravity },
+	{ "SouthEast", SouthEastGravity },
+	{ "SouthWest", SouthWestGravity },
+	{ "South",     SouthGravity },
+	{ "East",      EastGravity },
+	{ "West",      WestGravity },
+	{ "Center",    CenterGravity }
+};
 
-/* app_list attributes */
+/* Keep in sync with MatchType. */
 struct {
 	char      *name;
 	MatchType type;
-} MatchLookup[] = {{"wm_class_class", WMClassClass},
-                   {"wm_class_name",  WMClassName},
-                   {"wm_name",        WMName},
-                   {"property",       Prop}
+} MatchTable[] = {
+	{ "wm_class_class", WMClassClass },
+	{ "wm_class_name",  WMClassName },
+	{ "wm_name",        WMName },
+	{ "property",       Prop }
 };
 
 struct {
 	char       *name;
 	ListAction action;
 	int        group;
-} ActionLookup[] = {{"start_alt",  InitAltGrp, 0},
-		    {"alt_group1", AltGrp,     0},
-		    {"alt_group2", AltGrp,     1},
-		    {"alt_group3", AltGrp,     2},
-		    {"alt_group4", AltGrp,     3},
-		    {"ignore",    Ignore,     0}
+} ActionTable[] = {
+	{ "start_alt",  InitAltGrp, 0 },
+	{ "alt_group1", AltGrp,     0 },
+	{ "alt_group2", AltGrp,     1 },
+	{ "alt_group3", AltGrp,     2 },
+	{ "alt_group4", AltGrp,     3 },
+	{ "ignore",     Ignore,     0 }
 };
-
-/* keep temporary for compatibility */
-char  *ignoreMatch[] = {"wm_class.class", "wm_class.name", "wm_name"};
-
-/* Defaults */
-Geometry def_but_geom = { XNegative, -75, 7, 15, 15,  NorthEastGravity},
-	def_main_geom = {0, 0, 0, 48, 48, 0};
 
 struct {
 	char  *name;
-	char  *def;
 	int   flag;
-} ControlsTable [] = {
-	{"add_when_start",		"yes", When_start},
-	{"add_when_create",		"yes", When_create}, 
-	{"add_when_change",		"no",  When_change},
-	{"focusout",			"no",  Focus_out},
-	{"two_state",			"yes", Two_state},
-	{"button_delete",		"yes", Button_delete},
-	{"button_delete_and_forget",	"yes", Forget_window},
-	{"mainwindow_delete",		"yes", Main_delete}
+} ControlsTable[] = {
+	{ "add_when_start",		When_start },
+	{ "add_when_create",	When_create }, 
+	{ "add_when_change",	When_change },
+	{ "focusout",			Focus_out },
+	{ "two_state",			Two_state },
+	{ "button_delete",		Button_delete },
+	{ "button_delete_and_forget",	Forget_window },
+	{ "mainwindow_delete",	Main_delete }
 };
 
-char *MainXpmDflt[] = {"en48.xpm", "ru48.xpm", "", ""};
-char *ButXpmDflt[]  = {"en15.xpm", "ru15.xpm", "", ""};
 
-const char *Yes   = "yes";
-const char *No    = "no";
+/*
+ * GetRes
+ *     Reads the program resource specified by the name. Some resources
+ *     may be not required.
+ *
+ * Returns
+ *     nothing.
+ *     Exits the process if the required resource was not found.
+ */
 
-void
-ParseConfig(db, class, prefix, name, type, def_val, value)
+static void
+GetRes(db, name, type, required, value)
 	XrmDatabase db;
-	char *class, *prefix, *name, *def_val;
+	char	*name;
 	ResType type;
-	void *value;
+	Bool	required;
+	void	*value;
 {
-	XrmValue val; char *type_ret, *fullname, *s; Bool res = False;
+	XrmValue val;
+	Bool ok = False;
+	char *type_ret, *s, *full_res_name;
+	size_t len;
 
-	if (db) {
-		fullname = malloc(strlen(prefix) + strlen(name) + 2);
-		if (!fullname) ERR_MALLOC;
-		sprintf(fullname, "%s.%s", prefix, name);
-		res = XrmGetResource(db, fullname, class, &type_ret, &val);
-		free(fullname);
+	full_res_name = PrependProgramName(name);
+	ok = XrmGetResource(db, full_res_name, "", &type_ret, &val);
+	if (!ok) {
+		if (required) {
+			warnx("Unable to get a default value for the required resource `%s'", full_res_name);
+			free(full_res_name);
+
+			/* Be sure to exit if the required resource could not be read. */
+			exit(2);
+		}
+		else {
+			free(full_res_name);
+			return;
+		}
 	}
-  
-	if (!res) val.addr = def_val;
+	free(full_res_name);
+
 	switch (type) {
 	case T_string:
-		*((char **)value) = malloc(strlen(val.addr)+1);
-		if (!*((char**)value)) ERR_MALLOC;
+		len = strlen(val.addr);
+		*((char **)value) = malloc(len + 1);
+		if (*((char**)value) == NULL) err(1, NULL);
 		strcpy(*((char**)value), val.addr);
 		break;
+
 	case T_bool:
-		for (s = val.addr; *s; s++) if (isupper(*s)) *s = tolower(*s);
+		for (s = val.addr; *s; s++)
+			if (isupper(*s)) *s = tolower(*s);
 		*((Bool *)value) = (!strncmp(val.addr, "true", 4) ||
 				    !strncmp(val.addr, "yes",  3) ||
 				    !strncmp(val.addr, "on",   2))? True : False;
 		break;
+
 	case T_int:
-		*((int *)value) = atoi(val.addr);
+		*((int *)value) = strtol(val.addr, (char**)NULL, 10);
+		break;
 	}
 }
 
-static SearchList*
-MakeSearchList(char *str)
-{
-	int len = strlen(str), count = 0;
-	char *i, *j;
-	SearchList *ret;
-
-	ret = malloc(sizeof(SearchList));
-	if (!ret) ERR_MALLOC;
-	ret->num = 0;
-	ret->idx = NULL;
-	ret->list = NULL;
-	ret->next = NULL;
-	if (!len) return ret;
-
-	ret->list = malloc(len+1);
-	if (!ret->list) ERR_MALLOC;
-
-	i = str; j = ret->list;
-	while (len) {
-		count++;
-		while ((*i != ' ') && (*i != '\t')) {
-			*j++ = *i++;
-			if (!(--len)) {
-				*j = '\0';
-				break;
-			}
-		}
-		*j++ = '\0';
-		while ((*i == ' ') || (*i == '\t')) {
-			i++;
-			if (!(--len)) break;
-		}
-	}
-	ret->num = count;
-
-	ret->idx = malloc(count * sizeof(char*));
-	if (!ret->idx) ERR_MALLOC;
-
-	for (count = 0, i = ret->list; count < ret->num; count++) {
-		ret->idx[count] = i;
-		while (*i++);
-	}
-	return ret;
-}
-
-void
-GetRes(db, name1, name2, type, def_val, value)
+static void
+SetRes(db, name, type, val)
 	XrmDatabase db;
-	char *name1, *name2, *def_val;
+	char	*name;
 	ResType type;
-	void *value;
+	void	*val;
 {
-	char *name = malloc(strlen(name1) + strlen(name2) + 2);
-	if (!name) ERR_MALLOC;
-	sprintf(name, "%s.%s", name1, name2);
-	ParseConfig(db, "", APPNAME, name, type, def_val, value);
-	free(name);
+	char *full_res_name;
+
+	full_res_name = PrependProgramName(name);
+	switch (type) {
+	case T_string:
+		XrmPutStringResource(&db, full_res_name, (char*) val);
+		break;
+	}
+
+	free(full_res_name);
 }
 
-void
-GetRes3(db, name1, name2, name3, type, def_val, value)
+static void
+GetControlRes(db, name, controls, flag)
 	XrmDatabase db;
-	char *name1, *name2, *name3, *def_val;
-	ResType type;
-	void *value;
-{
-	char *name = malloc(strlen(name1) + strlen(name2) + strlen(name3) + 3);
-	if (!name) ERR_MALLOC;
-	sprintf(name, "%s.%s.%s", name1, name2, name3);
-	ParseConfig(db, "", APPNAME, name, type, def_val, value);
-	free(name);
-}
-
-void
-GetControlRes(db, name1, name2, def_val, controls, flag)
-	XrmDatabase db;
-	char *name1, *name2, *def_val;
+	char *name;
 	int *controls, flag;
 {
-	Bool value;
-	GetRes(db, name1, name2, T_bool, def_val, &value);
-	if (value)
+	Bool set;
+	GetRes(db, name, T_bool, True, &set);
+	if (set)
 		*controls |= flag;
 	else
 		*controls &= ~flag;
 }
 
-void
-GetPixmapRes(dpy, path, db, resname, defaults, pixmap)
+static void
+GetPixmapRes(dpy, db, path, window_name, pixmap)
 	Display     *dpy;
 	XrmDatabase db;
-	char        *path, *resname;
-	char        **defaults;
+	char        *path, *window_name;
 	Pixmap      *pixmap;
 {
 	int i;
-	char buf[6], *name, *fullname;
+	size_t len;
+	char res_name[64], *filename, *fullname;
 
-	for(i = 0; i < 4; i++) {
-		sprintf(buf, "xpm.%d", i+1);
-		GetRes(db, resname, buf, T_string, defaults[i], &name);
-		if (*name) {
-			if (*name == '/') {
-				load_image(dpy, name, &pixmap[i]);
+	for (i = 0; i < MAX_GROUP; i++) {
+		sprintf(res_name, "%s.xpm.%d", window_name, i + 1);
+		GetRes(db, res_name, T_string, True, &filename);
+		if (*filename) {
+			if (*filename == '/') {
+				LoadImage(dpy, filename, &pixmap[i]);
 			} else {
-				fullname = malloc(strlen(path) + strlen(name) + 2);
-				if (!fullname) ERR_MALLOC;
-				sprintf(fullname, "%s/%s", path, name);
-				load_image(dpy, fullname, &pixmap[i]);
+				len = strlen(path) + 1 + strlen(filename);
+				fullname = malloc(len + 1);
+				if (fullname == NULL) {
+					warn(NULL);
+					pixmap[i] = (Pixmap) 0;
+					continue;
+				}
+				sprintf(fullname, "%s/%s", path, filename);
+				LoadImage(dpy, fullname, &pixmap[i]);
 				free(fullname);
 			}
 		} else {
@@ -243,141 +234,296 @@ GetPixmapRes(dpy, path, db, resname, defaults, pixmap)
 	}
 }
 
-void
-GetGeometryRes(db, resname, def_geometry, geometry)
+static void
+GetGeometryRes(dpy, db, window_name, geometry)
+	Display     *dpy;
 	XrmDatabase db;
-	char *resname;
-	Geometry def_geometry, *geometry;
+	char 		*window_name;
+	Geometry 	*geometry;
 {
-	char *str;
-	int i;
-	Geometry geom = def_geometry;
+	char res_name[64], *str_geom, *str_gravity = NULL;
+	Geometry geom;
 
-	GetRes(db, resname, "geometry", T_string, "", &str);
-	geom.mask = XParseGeometry(str, &geom.x, &geom.y,
-				   &geom.width, &geom.height);
-	GetRes(db, resname, "gravity",  T_string, "", &str);
-	for(i = 0; GravityTab[i].name; i++) {
-		if (!strncmp(str, GravityTab[i].name, GravityTab[i].len)) {
-			geom.gravity = GravityTab[i].res;
-			break;
+	sprintf(res_name, "%s.geometry", window_name);
+	GetRes(db, res_name, T_string, True, &str_geom);
+	geom.mask = XParseGeometry(str_geom, &geom.x, &geom.y, &geom.width, &geom.height);
+	sprintf(res_name, "%s.gravity", window_name);
+	GetRes(db, res_name, T_string, False, &str_gravity);
+	if (str_gravity && *str_gravity) {
+		/* Legacy code */
+		int i;
+		for (i = 0; i < countof(GravityTable); i++) {
+			if (!strncmp(str_gravity, GravityTable[i].name, strlen(GravityTable[i].name))) {
+				geom.gravity = GravityTable[i].res;
+				break;
+			}
 		}
+	}
+	else {
+		/* Get the gravity from the geometry */
+		XSizeHints *size_hts = XAllocSizeHints();
+		if (!size_hts) errx(1, "Unable to allocate size hints");
+		XWMGeometry(dpy, DefaultScreen(dpy), str_geom, "", 0, size_hts, &geom.x, &geom.y, &geom.width, &geom.height, &geom.gravity);
+		XFree(size_hts);
 	}
 	*geometry = geom;
 }
 
-void
+
+/*
+ * GetConfig
+ *     Main routine of this module. Fills in the config object.
+ *
+ * Returns
+ *     0 on success.
+ */
+
+int
 GetConfig(Display *dpy, XXkbConfig *conf)
 {
 	XrmDatabase db;
-	char *xpmpath, *path, *filename, *resname, *str;
-	int i, j;
 	SearchList *list;
+	Status stat;
+	char *xpmpath, *homedir, *filename;
+	char *str_list, *res_app_list, res_ctrls[256];
+	size_t len;
+	int i, j;
   
+	homedir = getenv("HOME");
+
 	XrmInitialize();
 
+	/*
+	 * read global settings
+	 */
 #ifdef XT_RESOURCE_SEARCH
 	filename = XtResolvePathname(dpy, "app-defaults", NULL, NULL, NULL, NULL, 0, NULL);
 #else
-	filename = malloc(strlen(APPDEFDIR) + strlen(APPDEFFILE) + 2);
-	if (!filename) ERR_MALLOC;
-	sprintf(filename,"%s/%s", APPDEFDIR, APPDEFFILE);
+	len = strlen(APPDEFDIR) + 1 + strlen(APPDEFFILE);
+	filename = malloc(len + 1);
+	if (filename == NULL) {
+		warn(NULL);
+		return 1;
+	}
+	sprintf(filename, "%s/%s", APPDEFDIR, APPDEFFILE);
 #endif
 	db = XrmGetFileDatabase(filename);
-	free(filename);
+	if (db == NULL) {
+		/*
+		 * this situation is not fatal if the user has all
+		 * configuration in his $HOME/.xxkbrc file.
+		 */
+		warnx("Unable to open default resource file `%s'", filename);
+	}
 
-	path = getenv("HOME");
 #ifdef XT_RESOURCE_SEARCH
-	filename = XtResolvePathname(dpy, path, USERDEFFILE, NULL,
-				     "%T/%L/%N%C:%T/%l/%N%C:%T/%N%C:%T/%L/%N:%T/%l/%N:%T/%N",
-				     NULL, 0, NULL);
+	XtFree(filename);
 #else
-	filename = malloc(strlen(path) + strlen(USERDEFFILE) + 2);
-	if (!filename) ERR_MALLOC;
-	sprintf(filename,"%s/%s", path, USERDEFFILE);
+	free(filename);
 #endif
-	XrmCombineFileDatabase(filename, &db, True);
+
+
+	/*
+	 * read user-specific settings
+	 */
+#ifdef XT_RESOURCE_SEARCH
+	filename = XtResolvePathname(dpy, homedir, USERDEFFILE, NULL, "%T/%L/%N%C:%T/%l/%N%C:%T/%N%C:%T/%L/%N:%T/%l/%N:%T/%N", NULL, 0, NULL);
+#else
+	len = strlen(homedir) + 1 + strlen(USERDEFFILE);
+	filename = malloc(len + 1);
+	if (filename == NULL) {
+		warn(NULL);
+		XrmDestroyDatabase(db);
+		return 1;
+	}
+	sprintf(filename, "%s/%s", homedir, USERDEFFILE);
+#endif
+
+
+	/*
+	 * merge settings
+	 */
+	stat = XrmCombineFileDatabase(filename, &db, True);
+	if (stat == 0) {
+		/* failed */
+		warnx("Unable to find configuration data");
+		return 5;
+	}
+
+
+	/*
+	 * start with the conf object
+	 */
+
 	conf->user_config = filename;
 
-	if (!db) printf("Can't open resource file. Try to use defaults.\n");
-
-	GetRes(db, "xpm", "path", T_string, PIXMAPDIR, &xpmpath);
+	GetRes(db, "xpm.path", T_string, True, &xpmpath);
 
 	for (i = 0; i < countof(ControlsTable); i++) {
-		GetControlRes(db, "controls",
-			      ControlsTable[i].name, ControlsTable[i].def,
-			      &conf->controls, ControlsTable[i].flag);
+		sprintf(res_ctrls, "controls.%s", ControlsTable[i].name);
+		GetControlRes(db, res_ctrls, &conf->controls, ControlsTable[i].flag);
 	}
 
-	resname = "group";
-	GetRes(db, resname, "base", T_int, "1", &conf->Base_group);
-	GetRes(db, resname, "alt",  T_int, "2", &conf->Alt_group);
-	conf->Base_group--; conf->Alt_group--;
+	GetRes(db, "group.base", T_int, True, &conf->Base_group);
+	GetRes(db, "group.alt", T_int, True, &conf->Alt_group);
+	conf->Base_group--;
+	conf->Alt_group--;
 
-	resname = "bell";
-	GetControlRes(db, resname, "enable",  No, &conf->controls, Bell_enable);
-	GetRes       (db, resname, "percent", T_int, "-50", &conf->Bell_percent);
+	GetControlRes(db, "bell.enable", &conf->controls, Bell_enable);
+	GetRes(db, "bell.percent", T_int, True, &conf->Bell_percent);
 
-	resname = "mainwindow";
-	GetControlRes(db, resname, "enable",  Yes, &conf->controls, Main_enable);
-	GetControlRes(db, resname, "appicon", No,  &conf->controls, WMaker);
-	GetPixmapRes(dpy, xpmpath, db, resname, MainXpmDflt, &conf->pictures);
-	GetGeometryRes(db, resname, def_main_geom, &conf->main_geom);
-	GetRes(db, resname, "in_tray", T_string, "none", &conf->tray_type);
-
-	resname = "button";
-	GetControlRes(db, resname, "enable",  Yes, &conf->controls, Button_enable);
-	if (conf->controls&Button_enable) {
-		GetPixmapRes(dpy, xpmpath, db, resname, ButXpmDflt, &conf->pictures[4]);
-		GetGeometryRes(db, resname, def_but_geom, &conf->but_geom);
+	GetControlRes(db, "mainwindow.enable", &conf->controls, Main_enable);
+	/* to fix: move into if-case */
+	GetPixmapRes(dpy, db, xpmpath, "mainwindow", &conf->pictures);
+	GetGeometryRes(dpy, db, "mainwindow", &conf->main_geom);
+	if (conf->controls & Main_enable) {
+		GetControlRes(db, "mainwindow.appicon", &conf->controls, WMaker);
+		GetRes(db, "mainwindow.in_tray", T_string, False, &conf->tray_type);
 	}
 
-	resname = "app_list";
-	for (i = 0; i < countof(MatchLookup); i++) {
-		for (j = 0; j < countof(ActionLookup); j++) {
-			GetRes3(db, resname, MatchLookup[i].name, ActionLookup[j].name,
-				T_string, "", &str);
-			if (*str) {
-				list = MakeSearchList(str);
-				list->action = ActionLookup[j].action;
-				list->action |= ActionLookup[j].group & GrpMask;
-				list->type = MatchLookup[i].type;
-				list->next = conf->lists[i];
-				conf->lists[i] = list;
-			}
+	GetControlRes(db, "button.enable", &conf->controls, Button_enable);
+	if (conf->controls & Button_enable) {
+		GetPixmapRes(dpy, db, xpmpath, "button", &conf->pictures[MAX_GROUP]);
+		GetGeometryRes(dpy, db, "button", &conf->but_geom);
+	}
+	free(xpmpath);
+
+	for (i = 0; i < countof(MatchTable); i++) {
+		for (j = 0; j < countof(ActionTable); j++) {
+			res_app_list = GetAppListName(MatchTable[i].name, ActionTable[j].name);
+			if (res_app_list == NULL)
+				continue;
+
+			str_list = NULL;
+			GetRes(db, res_app_list, T_string, False, &str_list);
+			free(res_app_list);
+			if (str_list == NULL)
+				continue;
+
+			list = MakeSearchList(str_list);
+			free(str_list);
+			if (list == NULL)
+				continue;
+
+			list->action = ActionTable[j].action
+				| ActionTable[j].group & GrpMask;
+			list->type = MatchTable[i].type;
+
+			FreeSearchList(conf->app_lists[i]);
+			conf->app_lists[i] = list;
 		}
 	}
-
-	resname = "ignore";
-	GetControlRes(db, resname , "reverse", No, &conf->controls, Ignore_reverse);
 
 	/* keep temporary for compatibility */
-	for (i = 0; i < 3; i++) {
-		GetRes(db, resname, ignoreMatch[i], T_string, "", &str);
-		if (*str) {
-			list = MakeSearchList(str);
-			list->action = Ignore;
-			list->next = conf->lists[i];
-			conf->lists[i] = list;
-		}
+	for (i = 0; ignoreMatch[i]; i++) {
+		str_list = NULL;
+		GetRes(db, ignoreMatch[i], T_string, False, &str_list);
+		if (str_list == NULL)
+			continue;
+
+		list = MakeSearchList(str_list);
+		free(str_list);
+		if (list == NULL)
+			continue;
+
+		list->action = Ignore;
+		list->type = MatchTable[i].type;
+
+		FreeSearchList(conf->app_lists[i]);
+		conf->app_lists[i] = list;
 	}
 
-	resname = "mousebutton";
-	GetControlRes(db, resname , "1.reverse", No, &conf->controls, But1_reverse);
-	GetControlRes(db, resname , "3.reverse", No, &conf->controls, But3_reverse);
+	GetControlRes(db, "ignore.reverse", &conf->controls, Ignore_reverse);
+
+	GetControlRes(db, "mousebutton.1.reverse", &conf->controls, But1_reverse);
+	GetControlRes(db, "mousebutton.3.reverse", &conf->controls, But3_reverse);
+
+	XrmDestroyDatabase(db);
+
+	return 0;
 }
+
 
 void
-err_malloc()
+AddAppToIgnoreList(conf, app_ident, ident_type)
+	XXkbConfig	*conf;
+	char		*app_ident;
+	MatchType	ident_type;
 {
-	printf("xxkb: ParseConfig: Memory allocation error\n");
-	exit(0);
+	XrmDatabase db;
+ 	SearchList *cur, *prev, *list;
+	char *res_name, *new_list, *orig_list;
+	char *type_ret;
+	size_t len;
+	int i;
+
+	/* read the current list once again before updating it */
+	XrmInitialize();
+
+	db = XrmGetFileDatabase(conf->user_config);
+	if (db == NULL) {
+		warnx("Unable to open resource file `%s'", conf->user_config);
+		return;
+	}
+
+	res_name = GetAppListName(MatchTable[ident_type].name, "ignore");
+	if (res_name == NULL)
+		return;
+
+	len = strlen(app_ident);
+	orig_list = NULL;
+	GetRes(db, res_name, T_string, False, &orig_list);
+	if (orig_list != NULL) {
+		len += strlen(orig_list);
+		len += 1; /* 1 for the space-separator */
+	}
+
+	/* create a new list */
+	new_list = malloc(len + 1);
+	if (new_list == NULL) {
+		warn(NULL);
+		free(res_name);
+		XrmDestroyDatabase(db);
+		return;
+	}
+
+	/* fill in the new list */
+	strcpy(new_list, "\0");
+	if (orig_list != NULL) {
+		strcat(new_list, orig_list);
+		strcat(new_list, " ");
+	}
+	strcat(new_list, app_ident);
+
+	/* parse the new list */
+	list = MakeSearchList(new_list);
+	if (list == NULL) {
+		free(res_name);
+		free(new_list);
+		XrmDestroyDatabase(db);
+		return;
+	}
+	list->action = Ignore;
+	list->type = ident_type;
+
+	FreeSearchList(conf->app_lists[ident_type]);
+	conf->app_lists[ident_type] = list;
+
+	/* we have an updated list now,
+	 * let's update the resource database
+	 */
+	SetRes(db, res_name, T_string, new_list);
+	free(new_list);
+	free(res_name);
+
+	/* save the database */
+	XrmPutFileDatabase(db, conf->user_config);
+	XrmDestroyDatabase(db);
 }
 
-#include <X11/xpm.h>
 
-int
-load_image(Display *dpy, char * name, Pixmap *pixmap)
+static int
+LoadImage(Display *dpy, char *filename, Pixmap *pixmap)
 {
 	int res;
 	GC  gc;
@@ -388,119 +534,181 @@ load_image(Display *dpy, char * name, Pixmap *pixmap)
 
 	*pixmap = (Pixmap) 0;
 
-	res = XpmReadFileToImage(dpy, name, &picture, NULL, NULL);
-
+	res = XpmReadFileToImage(dpy, filename, &picture, NULL, NULL);
 	switch (res) {
 	case XpmOpenFailed:
-		printf("Xpm file open failed: %s\n", name);
+		warnx("Xpm file open failed: %s", filename);
 		break;
+
 	case XpmFileInvalid:
-		printf("Xpm file is invalid: %s\n", name);
+		warnx("Xpm file is invalid: %s", filename);
 		break;
+
 	case XpmNoMemory:
-		printf("No memory for open xpm file: %s\n", name);
+		warnx("No memory for open xpm file: %s", filename);
 		break;
+
 	default:
-		pixId = XCreatePixmap(dpy, RootWindow(dpy, DefaultScreen(dpy)),
-				      picture->width, picture->height,
-				      picture->depth);
+		pixId = XCreatePixmap(dpy, RootWindow(dpy, DefaultScreen(dpy)), picture->width, picture->height, picture->depth);
 		gc = XCreateGC(dpy, pixId, valuemask, &values);
-		XPutImage(dpy, pixId, gc, picture, 0, 0, 0, 0,
-			  picture->width, picture->height);
+		XPutImage(dpy, pixId, gc, picture, 0, 0, 0, 0, picture->width, picture->height);
 		XFreeGC(dpy, gc);
 		*pixmap = pixId;
+		break;
 	}
 }
+
+
+/*
+ * MakeSearchList
+ *     Converts a space- (and tab-) separated list into a list
+ *     of NUL-separated chunks.
+ *
+ * Returns
+ *     A pointer to the list on success, and
+ *     a NULL pointer on failure.
+ */
+
+#define	IS_SEPARATOR(a)		((a == ' ') || (a == '\t'))
+#define	IS_NOT_SEPARATOR(a)	(!IS_SEPARATOR(a))
+
+static SearchList*
+MakeSearchList(char *str)
+{
+	size_t len;
+	int count;
+	char *i, *j;
+	SearchList *ret;
+
+	/* allocate the memory for the list */
+	ret = malloc(sizeof(SearchList));
+	if (ret == NULL) {
+		warn(NULL);
+		return NULL;
+	}
+
+	/* initialize the list structure */
+	ret->action = (ListAction)0;
+	ret->type = (MatchType)0;
+	ret->num = 0;
+	ret->idx = NULL;
+	ret->list = NULL;
+
+	len = strlen(str);
+	if (len == 0) return ret;
+
+	ret->list = malloc(len + 1);
+	if (ret->list == NULL) {
+		warn(NULL);
+		free(ret);
+		return NULL;
+	}
+
+	/* tokenize the string */
+	i = str; j = ret->list; count = 0;
+	while (len) {
+		count++;
+		while (IS_NOT_SEPARATOR(*i)) {
+			*j++ = *i++;
+			if (!(--len)) {
+				*j = '\0';
+				break;
+			}
+		}
+		*j++ = '\0';
+		while (IS_SEPARATOR(*i)) {
+			i++;
+			if (!(--len)) break;
+		}
+	}
+	ret->num = count;
+
+	/* allocate the memory for the index list */
+	ret->idx = malloc(count * sizeof(char*));
+	if (ret->idx == NULL) {
+		warn(NULL);
+		free(ret->list);
+		free(ret);
+		return NULL;
+	}
+
+	/* store the chunk pointers */
+	for (count = 0, i = ret->list; count < ret->num; count++) {
+		ret->idx[count] = i;
+		while (*i++) /* empty body */;
+	}
+
+	return ret;
+}
+
+
+/*
+ * FreeSearchList
+ *     cleans the search list structure.
+ */
 
 static void
 FreeSearchList(SearchList *list)
 {
-	if (list == NULL)
-		return;
-	if (list->list != NULL) {
-		free(list->list);
-	}
-	if (list->idx != NULL) {
-		free(list->idx);
-	}
+	if (list == NULL) return;
+	free(list->list);
+	free(list->idx);
 	free(list);
 }
 
-static void
-RemakeSearchList(XXkbConfig *conf, MatchType type, ListAction act, char *string)
+
+/*
+ * GetAppListName
+ * Returns
+ *     a resource name for a app_list resource.
+ *
+ * Note
+ *     Caller must free the returned pointer.
+ */
+
+static char*
+GetAppListName(match, action)
+	char *match, *action;
 {
-	SearchList *cur, *prev, *newlist;
-	int i;
+	char *res_patt = "app_list.%s.%s", *res_name;
+	size_t len;
 
-	newlist = MakeSearchList(string);
-	newlist->action = act;
-	newlist->type = type;
-
-	for (i = 0; i < 3; i++) {
-		if (MatchLookup[i].type == type)
-			break;
+	len = strlen(res_patt) + strlen(match) + strlen(action);
+	res_name = malloc(len + 1);
+	if (res_name == NULL) {
+		warn(NULL);
+		return NULL;
 	}
-	newlist->next = conf->lists[i];
-	conf->lists[i] = newlist;
 
-	for (prev = newlist, cur = newlist->next;
-	     cur != NULL && cur->action != act;
-	     prev = cur, cur = cur->next);
+	sprintf(res_name, res_patt, match, action);
 
-	if (cur != NULL) {
-		prev->next = cur->next;
-		FreeSearchList(cur);
-	}
+	return res_name;
 }
 
-void
-SaveAppInConfig(XXkbConfig *conf, char *name, MatchType type)
+
+/*
+ * PrependProgramName
+ *     Prepends a program name to the string.
+ *
+ * Returns
+ *     a new string, which must be freed by the caller.
+ *     Exits the process if fails, which should never happen.
+ */
+
+static char*
+PrependProgramName(char *string)
 {
-	XrmDatabase db;
-	XrmValue val;
-	char *res_patt = "XXkb.app_list.%s.ignore";
-	char *type_ret, *full_res, *newlist, *ptr;
-	int len = 0, i;
+	size_t len;
+	char *result;
 
-	for (i = 0; i < 3; i++) {
-		if (MatchLookup[i].type == type)
-			break;
-	}
-	if ( i > 2) return;
+	len = strlen(APPNAME) + 1 + strlen(string);
 
-	full_res = (char*) malloc (strlen(res_patt) + strlen(MatchLookup[i].name));
-	if (full_res == NULL)
-		return;
-	sprintf(full_res, res_patt, MatchLookup[i].name);
+	result = malloc(len + 1);
+	if (result == NULL) err(1, NULL);
 
-	XrmInitialize();
-	db = XrmGetFileDatabase(conf->user_config);
+	strcpy(result, APPNAME);
+	strcat(result, ".");
+	strcat(result, string);
 
-	XrmGetResource(db, full_res, "", &type_ret, &val);
-
-	if (val.addr != NULL) {
-		len = strlen(val.addr) + 1;
-	}
-	len += strlen(name) + 1;
-
-	newlist = (char*) malloc(len);
-	if (newlist == NULL) {
-		XrmDestroyDatabase(db);
-		return; 
-	}
-
-	ptr = newlist;
-	if (val.addr) {
-		strcpy(ptr, val.addr);
-		ptr += strlen(val.addr);
-		*ptr++ = ' ';
-	}
-	strcpy(ptr, name);
-
-	RemakeSearchList(conf, type, Ignore, newlist);
-	XrmPutStringResource(&db, full_res, newlist);
-	free(newlist);
-
-	XrmPutFileDatabase(db, conf->user_config);
-	XrmDestroyDatabase(db);
+	return result;
 }

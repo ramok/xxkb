@@ -1,21 +1,22 @@
 #include "xxkb.tmpl"
 
 BASEDIR = $(PROJECTROOT)
-LOCAL_LIBRARIES = $(XONLYLIB) -lXpm -lXt
-
-PIXMAPDIR = $(BASEDIR)/share/xxkb
 BINDIR = $(BASEDIR)/bin
+PIXMAPDIR = $(BASEDIR)/share/xxkb
+LOCAL_LIBRARIES = $(XONLYLIB) -lXpm -lXt
 
 SRCS = xxkb.c resource.c wlist.c
 OBJS = xxkb.o resource.o wlist.o
 
 PIXMAPS = pixmaps
 
-DEFINES = -DAPPDEFDIR=\"$(DESTDIR)$(XAPPLOADDIR)\" \
-	-DPIXMAPDIR=\"$(DESTDIR)$(PIXMAPDIR)\"
-CDEBUGFLAGS = -O2
+DEFINES = -DAPPDEFDIR=\"$(DESTDIR)$(XAPPLOADDIR)\"
+CDEBUGFLAGS = -g
+SED = sed
 
 ComplexProgramTarget(xxkb)
 
+PatchFile(XXkb.ad.var,XXkb.ad,"s#PIXMAPDIR#$(DESTDIR)$(PIXMAPDIR)#g")
 InstallAppDefaults(XXkb)
+
 InstallMultipleByMask($(PIXMAPS),*.xpm,$(PIXMAPDIR))

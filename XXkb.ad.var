@@ -1,5 +1,4 @@
-
-! XXkb.xpm.path: /usr/X11R6/share/xxkb
+XXkb.xpm.path: PIXMAPDIR
 
 XXkb.group.base: 1
 XXkb.group.alt: 2
@@ -17,7 +16,6 @@ XXkb.mainwindow.xpm.4:
 
 XXkb.button.enable: yes
 XXkb.button.geometry: 15x15-60+7
-XXkb.button.gravity: NorthEast
 XXkb.button.xpm.1: en15.xpm
 XXkb.button.xpm.2: ru15.xpm
 XXkb.button.xpm.3: su15.xpm

@@ -17,8 +17,13 @@ typedef struct _WInfo {
 
 static WInfo *winlist = NULL, *last = NULL;
 
-WInfo* win_find(Window w);
-WInfo* button_find(Window button);
 WInfo* win_add(Window w, kbdState *state);
+
+WInfo* win_find(Window win);
+WInfo* button_find(Window button);
+
+void   win_update(Window win, GC gc, int group);
+void   button_update(Window win, GC gc, int group);
+
 void   win_free(Window w);
 void   win_free_list(void);

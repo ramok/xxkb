@@ -7,18 +7,18 @@
 #define APPDEFFILE	"XXkb"
 #define USERDEFFILE	".xxkbrc"
 
-#define	When_create	(1<<0)
-#define	When_change	(1<<1)
-#define	Focus_out	(1<<2)
-#define	Two_state	(1<<3)
+#define	When_create		(1<<0)
+#define	When_change		(1<<1)
+#define	Focus_out		(1<<2)
+#define	Two_state		(1<<3)
 #define	Button_enable	(1<<4)
-#define	Main_enable	(1<<5)
-#define	WMaker		(1<<6)
+#define	Main_enable		(1<<5)
+#define	WMaker			(1<<6)
 #define	Button_delete	(1<<7)
-#define	When_start	(1<<8)
-#define	Bell_enable	(1<<9)
+#define	When_start		(1<<8)
+#define	Bell_enable		(1<<9)
 #define	Ignore_reverse	(1<<10)
-#define	Main_delete	(1<<11)
+#define	Main_delete		(1<<11)
 
 #define	But1_reverse	(1<<12)
 #define	But3_reverse	(1<<13)
@@ -33,7 +33,7 @@ typedef struct {
 } Geometry;
 
 typedef enum { T_string, T_bool, T_int } ResType;
-typedef enum { WMClassClass, WMClassName, WMName, Prop} MatchType;
+typedef enum { WMClassClass = 0, WMClassName, WMName, Prop } MatchType;
 typedef int  ListAction;
 
 #define GrpMask    (0x3)
@@ -42,7 +42,6 @@ typedef int  ListAction;
 #define Ignore     (1<<4)
 
 typedef struct _SearchList {
-	struct _SearchList *next;
 	ListAction	action;
 	MatchType	type;
 	int			num;
@@ -50,31 +49,30 @@ typedef struct _SearchList {
 	char		*list;
 } SearchList;
 
-typedef struct {
+typedef struct __XXkbConfig {
 	unsigned int controls;
 	int          Base_group, Alt_group, Bell_percent;
 	Geometry     main_geom, but_geom;
-	SearchList*  lists[4];
-	char*        user_config;
+	SearchList*  app_lists[sizeof(MatchType)];
+	char*        user_config; /* filename */
 	char*        tray_type;
 	Pixmap       pictures[2*MAX_GROUP];
 } XXkbConfig;
 
-void GetConfig(Display *, XXkbConfig *);
-void getGC(Window, GC *);
+
+void getGC(Window w, GC *gc);
 void update_window(Window w, GC gc, int group);
 void update_button(Window w, GC gc, int group);
 void Reset(void);
 void Terminate(void);
 
 Bool ExpectInput(Window win);
-void ErrHandler(Display* dpy, XErrorEvent* err);
+void ErrHandler(Display *dpy, XErrorEvent *err);
 
 WInfo* AddWindow(Window w, Window parent);
-void   GetAppWindow(Window w, Window* app);
-Window GetGrandParent(Window w);
 Window MakeButton(Window parent);
+Window GetGrandParent(Window w);
+void   GetAppWindow(Window w, Window *app);
 
-char* GetAppIdent(Window w, MatchType type);
-void AddAppToConfig(Window win, unsigned int state);
-void SaveAppInConfig(XXkbConfig *conf, char* name, MatchType type);
+int  GetConfig(Display *dpy, XXkbConfig *conf);
+void AddAppToIgnoreList(XXkbConfig *conf, char* app_ident, MatchType type);
