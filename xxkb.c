@@ -7,6 +7,9 @@
  *     Copyright (c) 1999-2003, by Ivan Pascal <pascal@tsu.ru>
  */
 
+#include <stdio.h>
+#include <err.h>
+
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/XKBlib.h>
@@ -73,17 +76,19 @@ main(int argc, char ** argv)
 	char buf[64];
 
 	/* Lets begin */
-	dpy = XkbOpenDisplay("", &xkbEventType, &xkbError, NULL, NULL, &reason_rtrn); 
+	mjr = XkbMajorVersion;
+	mnr = XkbMinorVersion;
+	dpy = XkbOpenDisplay("", &xkbEventType, &xkbError, &mjr, &mnr, &reason_rtrn); 
 	if (!dpy) {
 		warnx("Can't connect to X-server: %s", getenv("DISPLAY"));
 		switch (reason_rtrn) {
 		case XkbOD_BadLibraryVersion :
 		case XkbOD_BadServerVersion :
 			warnx("xxkb was compiled with XKB version %d.%02d",
-				  XkbMajorVersion,XkbMinorVersion);
+				  XkbMajorVersion, XkbMinorVersion);
 			warnx("But %s uses incompatible version %d.%02d",
 				  reason_rtrn == XkbOD_BadLibraryVersion ? "Xlib" : "Xserver",
-				  mjr,mnr);
+				  mjr, mnr);
 			break;
 
 		case XkbOD_ConnectionRefused :
@@ -125,16 +130,16 @@ main(int argc, char ** argv)
 #endif
 	if (GetConfig(dpy, &conf) != 0) {
 		warnx("Unable to initialize");
-		return;
+		return -1;
 	}
 
 	/* My MAIN window */
 	geom = conf.mainwindow.geometry;
 	if (geom.mask & (XNegative | YNegative)) {
 		int x,y;
-		unsigned int width, height, bord, dep;
+		unsigned int width, height, border, dep;
 		Window rwin;
-		XGetGeometry(dpy, RootWin, &rwin, &x, &y, &width, &height, &bord, &dep);
+		XGetGeometry(dpy, RootWin, &rwin, &x, &y, &width, &height, &border, &dep);
 		if (geom.mask & XNegative)
 			geom.x = width + geom.x - geom.width;
 		if (geom.mask & YNegative)
@@ -218,6 +223,10 @@ main(int argc, char ** argv)
 							(unsigned char *)&data, 1);
 		} else if (!strcmp(conf.tray_type, "KDE3") ||
 		           !strcmp(conf.tray_type, "GNOME2")) {
+			r = XInternAtom(dpy, "_KDE_NET_WM_SYSTEM_TRAY_WINDOW_FOR", False);
+			XChangeProperty(dpy, MainWin, r, XA_WINDOW, 32, 0,
+							(unsigned char *)&data, 1);
+
 			systray = GetSystray(dpy);
 			if (systray != None) {
 				DockWindow(dpy, systray, MainWin);
@@ -264,7 +273,8 @@ main(int argc, char ** argv)
 			num--;
 		}
 
-		XFree(children);
+		if (children)
+			XFree(children);
 		XGetInputFocus(dpy, &focused, &revert);
 		info = win_find(focused);
 		if (info == NULL) info = &def_info;
@@ -473,6 +483,7 @@ main(int argc, char ** argv)
 				if (!ev.core.xconfigure.above ||
 				    !(conf.controls & Button_enable))
 					break;
+
 				tmp_info = button_find(ev.core.xconfigure.above);
 				if (tmp_info != NULL)
 					XRaiseWindow(dpy, ev.core.xconfigure.above);
@@ -482,10 +493,12 @@ main(int argc, char ** argv)
 				win = ev.core.xproperty.window;
 				tmp_info = win_find(win);
 				if (tmp_info == NULL) {
-					Window rwin, parent, *childrens, *child, app;
+					Window rwin, parent, *children;
 					int num;
-					XQueryTree(dpy, win, &rwin, &parent, &childrens, &num);
+					XQueryTree(dpy, win, &rwin, &parent, &children, &num);
 					AddWindow(win, parent);
+					if (children)
+					    XFree(children);
 				}
 				break;
 
@@ -522,6 +535,7 @@ main(int argc, char ** argv)
 			case MapNotify:
 			case MappingNotify:
 			case GravityNotify:
+			case GraphicsExpose:
 				/* Ignore these events */
 				break;
 
@@ -586,8 +600,8 @@ AddWindow(Window win, Window parent)
 	ListAction action;
 	XWindowAttributes attr;
 
-	/* properties can be unappropriate at this moment */
-	/* so we need posibility to redecide when them will be changed */
+	/* properties can be unsuitable at this moment so we need to have
+	   a posibility to reconsider when they will be changed */
 	XSelectInput(dpy, win, PropertyChangeMask);
 
 	/* don't deal with windows that never get a focus */
@@ -618,7 +632,7 @@ AddWindow(Window win, Window parent)
 	if ((conf.controls & Button_enable) && (!info->button) && !ignore)
 		info->button = MakeButton(parent);
 
-/* to be sure that window still exists */
+	/* make sure that window still exists */
 	stat = XGetWindowAttributes(dpy, win, &attr);
 	if (stat == 0) {
 		/* failed */
@@ -634,29 +648,35 @@ MakeButton(Window parent)
 {
 	Window button, rwin;
 	int x, y;
-	unsigned int width, height, bord, dep;
-	XSetWindowAttributes attr;
+	unsigned int width, height, border, dep;
+	XSetWindowAttributes butt_attr;
 	Geometry geom = conf.button.geometry;
 
 	parent = GetGrandParent(parent);
 	if (parent == (Window) 0)
 		return (Window) 0;
 
-	XGetGeometry(dpy, parent, &rwin, &x, &y, &width, &height, &bord, &dep);
-	x = (geom.mask & XNegative)? width  + geom.x - geom.width  : geom.x;
-	y = (geom.mask & YNegative)? height + geom.y - geom.height : geom.y;
+	XGetGeometry(dpy, parent, &rwin, &x, &y, &width, &height, &border, &dep);
+	x = (geom.mask & XNegative) ? width  + geom.x - geom.width  : geom.x;
+	y = (geom.mask & YNegative) ? height + geom.y - geom.height : geom.y;
 
 	if ((geom.width > width) || (geom.height > height))
 		return (Window) 0;
 
-	button = XCreateSimpleWindow(dpy, parent, x, y, geom.width, geom.height,
-							conf.button.border_width, conf.button.border_color,
-							WhitePixel(dpy, scr));
+	memset(&butt_attr, 0, sizeof(butt_attr));
+	butt_attr.background_pixmap = ParentRelative;
+	butt_attr.background_pixel = conf.button.border_color;
+	butt_attr.override_redirect = True;
+	butt_attr.win_gravity = geom.gravity;
 
-	attr.override_redirect = True;
-	attr.win_gravity = geom.gravity;
+	button = XCreateWindow(dpy, parent,
+					x, y,
+					geom.width, geom.height, conf.button.border_width,
+					CopyFromParent, InputOutput, CopyFromParent,
+					CWWinGravity | CWOverrideRedirect | CWBackPixmap
+						| CWBorderPixel,
+					&butt_attr);
 
-	XChangeWindowAttributes(dpy, button, CWWinGravity | CWOverrideRedirect, &attr);
 	XSelectInput(dpy, parent, SubstructureNotifyMask);
 	XSelectInput(dpy, button, ExposureMask | ButtonPressMask);
 	XMapRaised(dpy, button);
@@ -667,14 +687,16 @@ MakeButton(Window parent)
 static Window
 GetGrandParent(Window w)
 {
-	Window rwin, parent, *child;
+	Window rwin, parent, *children;
 	int num;
 
 	while (1) {
-		if (!XQueryTree(dpy, w, &rwin, &parent, &child, &num))
+		if (!XQueryTree(dpy, w, &rwin, &parent, &children, &num))
 			return (Window) 0;
-		XFree(child);
-		if (parent == rwin) return w;
+		if (children)
+			XFree(children);
+		if (parent == rwin)
+			return w;
 		w = parent;
 	}
 }
@@ -700,19 +722,21 @@ GetAppWindow(Window win, Window *core)
 		n--;
 	}
 
-	XFree(children);
+	if (children)
+		XFree(children);
 }
 
 static Bool
 Compare(char *pattern, char *str)
 {
-	char *i = pattern, *j = str, *sub, *lpos;
-	Bool aster = False; 
+	char *i = pattern, *j = str, *sub = i, *lpos = j;
+	Bool aster = False;
 
 	do {
 		if (*i == '*') { 
 			i++;
-			if (*i == '\0') return True;
+			if (*i == '\0')
+				return True;
 			aster = True; sub = i; lpos = j;
 			continue;
 		}
@@ -923,7 +947,7 @@ IgnoreWindow(WInfo *info, MatchType type)
 static MatchType
 GetTypeFromState(unsigned int state)
 {
-	MatchType type;
+	MatchType type = -1;
 
 	switch (state & (ControlMask | ShiftMask)) {
 	case 0:
@@ -1021,11 +1045,11 @@ MoveOrigin(Display *dpy, Window w, int *w_x, int *w_y)
 	Window rwin;
 	Geometry geom;
 	int x, y;
-	unsigned int width, height, bord, dep;
+	unsigned int width, height, border, dep;
 	
 	geom = conf.mainwindow.geometry;
 	
-	XGetGeometry(dpy, w, &rwin, &x, &y, &width, &height, &bord, &dep);
+	XGetGeometry(dpy, w, &rwin, &x, &y, &width, &height, &border, &dep);
 
 	/* X axis */
 	if (width > geom.width) {

@@ -11,13 +11,13 @@
 #define	When_change		(1<<1)
 #define	Focus_out		(1<<2)
 #define	Two_state		(1<<3)
-#define	Button_enable	(1<<4)
+#define	Button_enable		(1<<4)
 #define	Main_enable		(1<<5)
 #define	WMaker			(1<<6)
-#define	Button_delete	(1<<7)
+#define	Button_delete		(1<<7)
 #define	When_start		(1<<8)
 #define	Bell_enable		(1<<9)
-#define	Ignore_reverse	(1<<10)
+#define	Ignore_reverse		(1<<10)
 #define	Main_delete		(1<<11)
 
 #define	But1_reverse	(1<<12)
@@ -58,6 +58,7 @@ typedef struct __SearchList {
 typedef	struct {
 	Geometry geometry;
 	Pixmap   pictures[MAX_GROUP];
+	Pixmap   shapemask[MAX_GROUP];
 	unsigned int  border_width, border_color;
 } XXkbElement;
 

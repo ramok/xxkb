@@ -14,7 +14,9 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <ctype.h>
+#include <err.h>
 
 #include <X11/Xlib.h>
 #include <X11/Xresource.h>
@@ -35,7 +37,7 @@ static SearchList* MakeSearchList(char *string);
 static char* PrependProgramName(char *string);
 static char* GetAppListName(char *match, char *action);
 static void FreeSearchList(SearchList *list);
-static int LoadImage(Display *dpy, char *filename, Pixmap *map);
+static void LoadImage(Display *dpy, char *filename, Pixmap *map, Pixmap *mask);
 
 #define	countof(a)	(sizeof(a) / sizeof(a[0]))
 
@@ -179,6 +181,8 @@ SetRes(XrmDatabase db, char *name, ResType type, void *val)
 	case T_string:
 		XrmPutStringResource(&db, full_res_name, (char*) val);
 		break;
+	default:
+		break;
 	}
 
 	free(full_res_name);
@@ -219,11 +223,12 @@ GetControlRes(XrmDatabase db, char *name, int *controls, int flag)
 static void
 GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *element)
 {
-	int i, mask;
+	int i;
 	Bool labels_enabled;
 	size_t len;
 	char res_name[64], *str_geom, *str_gravity;
 	Pixmap *pixmap = element->pictures;
+	Pixmap *shape = element->shapemask;
 	Geometry *geom = &element->geometry;
 
 	sprintf(res_name, "%s.geometry", window_name);
@@ -354,6 +359,7 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 						label, strlen(label));
 
 			pixmap[i] = pixId;
+			shape[i] = (Pixmap) 0;
 
 			XFreeGC(dpy, gc);
 			XFree(label);
@@ -373,7 +379,7 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 			GetRes(db, res_name, T_string, True, &filename);
 			if (filename != NULL && *filename != '\0') {
 				if (*filename == '/') {
-					LoadImage(dpy, filename, &pixmap[i]);
+					LoadImage(dpy, filename, &pixmap[i], &shape[i]);
 				} else {
 					len = strlen(xpmpath) + 1 + strlen(filename);
 					fullname = malloc(len + 1);
@@ -381,11 +387,12 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 						warn(NULL);
 						free(filename);
 						pixmap[i] = (Pixmap) 0;
+						shape[i] = (Pixmap) 0;
 						continue;
 					}
 
 					sprintf(fullname, "%s/%s", xpmpath, filename);
-					LoadImage(dpy, fullname, &pixmap[i]);
+					LoadImage(dpy, fullname, &pixmap[i], &shape[i]);
 
 					free(fullname);
 				}
@@ -393,6 +400,7 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 				free(filename);
 			} else {
 				pixmap[i] = (Pixmap) 0;
+				shape[i] = (Pixmap) 0;
 			}
 		}
 
@@ -417,7 +425,6 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 	Status stat;
 	char *homedir, *filename;
 	char *str_list, *res_app_list, res_ctrls[256];
-	size_t len;
 	int i, j;
   
 	homedir = getenv("HOME");
@@ -535,7 +542,7 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 				continue;
 
 			list->action = ActionTable[j].action
-				| ActionTable[j].group & GrpMask;
+				| (ActionTable[j].group & GrpMask);
 			list->type = MatchTable[i].type;
 			list->next = conf->app_lists[i];
 			conf->app_lists[i] = list;
@@ -577,9 +584,7 @@ AddAppToIgnoreList(XXkbConfig *conf, char *app_ident, MatchType ident_type)
 	XrmDatabase db;
  	SearchList *cur, *prev, *list;
 	char *res_name, *new_list, *orig_list;
-	char *type_ret;
 	size_t len;
-	int i;
 
 	/* read the current list once again before updating it */
 	XrmInitialize();
@@ -658,19 +663,16 @@ AddAppToIgnoreList(XXkbConfig *conf, char *app_ident, MatchType ident_type)
 }
 
 
-static int
-LoadImage(Display *dpy, char *filename, Pixmap *pixmap)
+static void
+LoadImage(Display *dpy, char *filename, Pixmap *pixmap, Pixmap *mask)
 {
 	int res;
-	GC  gc;
-	unsigned long valuemask = 0; /* No data in "values" */
-	XImage    *picture;
-	Pixmap    pixId;
-	XGCValues values;
+	Pixmap picture, shape;
 
 	*pixmap = (Pixmap) 0;
+	*mask = (Pixmap) 0;
 
-	res = XpmReadFileToImage(dpy, filename, &picture, NULL, NULL);
+	res = XpmReadFileToPixmap(dpy, RootWindow(dpy, DefaultScreen(dpy)), filename, &picture, &shape, NULL);
 	switch (res) {
 	case XpmOpenFailed:
 		warnx("Unable to open xpm file `%s'", filename);
@@ -685,11 +687,8 @@ LoadImage(Display *dpy, char *filename, Pixmap *pixmap)
 		break;
 
 	default:
-		pixId = XCreatePixmap(dpy, RootWindow(dpy, DefaultScreen(dpy)), picture->width, picture->height, picture->depth);
-		gc = XCreateGC(dpy, pixId, valuemask, &values);
-		XPutImage(dpy, pixId, gc, picture, 0, 0, 0, 0, picture->width, picture->height);
-		XFreeGC(dpy, gc);
-		*pixmap = pixId;
+		*pixmap = picture;
+		*mask = shape;
 		break;
 	}
 }
