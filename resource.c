@@ -163,6 +163,10 @@ GetRes(db, name, type, required, value)
 	case T_int:
 		*((int *)value) = strtol(val.addr, (char**)NULL, 10);
 		break;
+
+	case T_ulong:
+		*((unsigned long *)value) = strtoul(val.addr, (char**)NULL, 16);
+		break;
 	}
 }
 

@@ -32,7 +32,7 @@ typedef struct {
 	int	gravity;
 } Geometry;
 
-typedef enum { T_string, T_bool, T_int } ResType;
+typedef enum { T_string, T_bool, T_int, T_ulong } ResType;
 typedef enum { WMClassClass = 0, WMClassName, WMName, Prop } MatchType;
 typedef int  ListAction;
 
