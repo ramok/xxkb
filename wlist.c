@@ -52,7 +52,7 @@ win_update(Window win, XXkbElement *elem, GC gc, int group, int win_x, int win_y
 {
 	if (win && elem->pictures[group]) {
 #ifdef SHAPE_EXT
-		if(shape_ext) {
+		if (shape_ext) {
 			/* Set clip region */
 			XShapeCombineMask(dpy, win,
 				ShapeClip,

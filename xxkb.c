@@ -442,7 +442,7 @@ main(int argc, char ** argv)
 				temp_win = btn_evt->window;
 				switch (btn_evt->button) {
 				case Button1:
-					if(btn_evt->state & ControlMask) {
+					if (btn_evt->state & ControlMask) {
 						int root_x, root_y, mask;
 						Window root, child;
 						
@@ -532,19 +532,20 @@ main(int argc, char ** argv)
 				break;
 			
 			case MotionNotify:
-				if(move_window != 0) {
+				if (move_window != 0) {
+					int x, y;
+					Window child;
+
 					mov_evt = &ev.core.xmotion;
 					temp_win = mov_evt->window;
 					
-					int x, y;
-					Window child;
 					/* Don't move window in systray */
-					if(temp_win == main_win && (conf.controls & Main_tray)) {
+					if (temp_win == main_win && (conf.controls & Main_tray)) {
 						break;
 					}
 					
 					temp_info = button_find(temp_win);
-					if(temp_info != NULL) {
+					if (temp_info != NULL) {
 						XTranslateCoordinates(dpy, mov_evt->root, temp_info->parent,
 									mov_evt->x_root, mov_evt->y_root,
 									&x, &y, &child);
@@ -558,12 +559,12 @@ main(int argc, char ** argv)
 				break;
 			
 			case ButtonRelease:
-				if(move_window != 0) {
+				if (move_window != 0) {
 					btn_evt = &ev.core.xbutton;
 					temp_win = btn_evt->window;
 					
 					temp_info = button_find(temp_win);
-					if(temp_info != NULL) {
+					if (temp_info != NULL) {
 						AdjustWindowPos(dpy, temp_win, temp_info->parent, True);
 					}
 				}
@@ -631,7 +632,7 @@ main(int argc, char ** argv)
 
 			case ConfigureNotify:
 				/* Buttons are not enabled */
-				if(!(conf.controls & Button_enable)) {
+				if (!(conf.controls & Button_enable)) {
 					break;
 				}
 
@@ -645,7 +646,7 @@ main(int argc, char ** argv)
 				/* Raise window, if necessary */
 				temp_win = ev.core.xconfigure.above;
 
-				if(temp_win == None) {
+				if (temp_win == None) {
 					break;
 				}
 
@@ -733,11 +734,11 @@ AdjustWindowPos(Display *dpy, Window win, Window parent, Bool set_gravity)
 	y1 = (y < 0) ? 0 : ((y+h+2*bd) > h1) ? h1-h-2*bd : y;
 	
 	/* Adjust window position, if necessary */
-	if(x != x1 || y != y1) {
+	if (x != x1 || y != y1) {
 		XMoveWindow(dpy, win, x1, y1);
 	}
 	
-	if(set_gravity == False) {
+	if (set_gravity == False) {
 		return;
 	}
 
@@ -884,7 +885,7 @@ AddWindow(Window win, Window parent)
 	}
 
 	/* make sure that window still exists */
-	if(XGetWindowAttributes(dpy, win, &attr) == 0) {
+	if (XGetWindowAttributes(dpy, win, &attr) == 0) {
 		/* failed */
 		win_free(win);
 		return NULL;

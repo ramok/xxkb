@@ -401,7 +401,7 @@ CreateLabel(Display *dpy, XXkbElement *elem, Pixmap *pixmap, Pixmap *mask, char 
 	pixId = XCreatePixmap(dpy, RootWindow(dpy, scr),
 				elem->geometry.width, elem->geometry.height, depth);
 	/* Failed to create pixmap */
-	if(pixId == None) {
+	if (pixId == None) {
 		return;
 	}
 
@@ -508,7 +508,7 @@ CreateShade(Display *dpy, XXkbElement *elem, Pixmap *shape, Pixmap *shade)
 			elem->geometry.height + 2*elem->border_width,
 			1);
 	/* Failed to create pixmap */
-	if(shadow == None) {
+	if (shadow == None) {
 		return;
 	}
 	valuemask = 0;
@@ -525,7 +525,7 @@ CreateShade(Display *dpy, XXkbElement *elem, Pixmap *shape, Pixmap *shade)
 	memset(&values, 0, sizeof(XGCValues));
 	values.function = GXorReverse;
 	XChangeGC(dpy, gc, valuemask, &values);
-	if(shape != NULL && *shape != None) {
+	if (shape != NULL && *shape != None) {
 	    XCopyArea(dpy, *shape, shadow, gc,
 			0, 0,
 			elem->geometry.width,
@@ -647,10 +647,10 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 		char *type;
 		
 		GetRes(db, "mainwindow.type", T_string, True, &type);
-		if(strncasecmp(type, "wmaker", 6) == 0) {
+		if (strncasecmp(type, "wmaker", 6) == 0) {
 			conf->controls |= WMaker;
 		}
-		else if(strncasecmp(type, "tray", 4) == 0) {
+		else if (strncasecmp(type, "tray", 4) == 0) {
 			conf->controls |= Main_tray;
 		}
 		else if (strncasecmp(type, "top", 3) == 0) {
@@ -662,7 +662,8 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 		else {
 		    errx(2, "Unknown window type '%s'", type);
 		}
-		if(!(conf->controls & Main_tray)) {
+
+		if (!(conf->controls & Main_tray)) {
 			GetRes(db, "mainwindow.border.width", T_int, True, &conf->mainwindow.border_width);
 			GetColorRes(dpy, db, "mainwindow.border.color", &conf->mainwindow.border_color);
 		}
