@@ -373,7 +373,7 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 						label, strlen(label));
 
 			pixmap[i] = pixId;
-			shape[i] = (Pixmap) 0;
+			shape[i] = None;
 
 			XFreeGC(dpy, gc);
 			XFree(label);
@@ -406,8 +406,8 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 					if (fullname == NULL) {
 						warn(NULL);
 						free(filename);
-						pixmap[i] = (Pixmap) 0;
-						shape[i] = (Pixmap) 0;
+						pixmap[i] = None;
+						shape[i] = None;
 						continue;
 					}
 
@@ -419,8 +419,8 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 
 				free(filename);
 			} else {
-				pixmap[i] = (Pixmap) 0;
-				shape[i] = (Pixmap) 0;
+				pixmap[i] = None;
+				shape[i] = None;
 			}
 		}
 
@@ -711,8 +711,8 @@ LoadImage(Display *dpy, char *filename, Pixmap *pixmap, Pixmap *mask, int width,
 	int res;
 	Pixmap picture, shape;
 
-	*pixmap = (Pixmap) 0;
-	*mask = (Pixmap) 0;
+	*pixmap = None;
+	*mask = None;
 
 	res = XpmReadFileToPixmap(dpy, RootWindow(dpy, DefaultScreen(dpy)), filename, &picture, &shape, NULL);
 	switch (res) {

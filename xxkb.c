@@ -226,20 +226,20 @@ main(int argc, char ** argv)
 		}
 	}
 	else
-		icon = (Window) 0;
+		icon = None;
 
 	if (conf.controls & Tray_enable) {
 		Atom atom;
 		int data = 1;
 
 		atom = XInternAtom(dpy, "KWM_DOCKWINDOW", False);
-		if (atom != NULL) {
+		if (atom != None) {
 			XChangeProperty(dpy, main_win, atom, atom, 32, 0,
 							(unsigned char*) &data, 1);
 		}
 
 		atom = XInternAtom(dpy, "_KDE_NET_WM_SYSTEM_TRAY_WINDOW_FOR", False);
-		if (atom != NULL) {
+		if (atom != None) {
 			XChangeProperty(dpy, main_win, atom, XA_WINDOW, 32, 0,
 							(unsigned char*) &data, 1);
 		}
@@ -274,7 +274,7 @@ main(int argc, char ** argv)
 	def_state.alt = conf.Alt_group;
 
 	def_info.win = icon ? icon : main_win;
-	def_info.button = (Window) 0;
+	def_info.button = None;
 	def_info.state = def_state;
 
 	Reset();
@@ -285,18 +285,19 @@ main(int argc, char ** argv)
 
 		XQueryTree(dpy, root_win, &rwin, &parent, &children, &num);
 		child = children;
-		while (num != NULL) {
-			app = (Window) 0;
+		while (num != 0) {
+			app = None;
 			GetAppWindow(*child, &app);
-			if (app != NULL && app != main_win && app != icon) {
+			if (app != None && app != main_win && app != icon) {
 				AddWindow(app, *child);
 			}
 			child++;
 			num--;
 		}
 
-		if (children)
+		if (children != None)
 			XFree(children);
+
 		XGetInputFocus(dpy, &focused_win, &revert);
 		info = win_find(focused_win);
 		if (info == NULL) {
@@ -362,11 +363,11 @@ main(int argc, char ** argv)
 					info->state.alt = grp;
 				}
 
-				if (info->button != NULL) {
+				if (info->button != None) {
 					button_update(info->button, &conf, gc, grp);
 				}
 				win_update(main_win, &conf, gc, grp, win_x, win_y);
-				if (icon != NULL) {
+				if (icon != None) {
 					win_update(icon, &conf, gc, grp, win_x, win_y);
 				}
 				if (conf.controls & Bell_enable) {
@@ -482,7 +483,7 @@ main(int argc, char ** argv)
 					info = &def_info;
 				}
 
-				if (info->ignore == NULL) {
+				if (info->ignore == 0) {
 					XkbLockGroup(dpy, XkbUseCoreKbd, info->state.group);
 				}
 				else {
@@ -530,7 +531,7 @@ main(int argc, char ** argv)
 
 				temp_info = button_find(temp_win);
 				if (temp_info != NULL) {
-					temp_info->button = (Window) 0;
+					temp_info->button = None;
 				}
 				break;
 
@@ -556,7 +557,8 @@ main(int argc, char ** argv)
 
 					XQueryTree(dpy, temp_win, &rwin, &parent, &children, &num);
 					AddWindow(temp_win, parent);
-					if (children)
+
+					if (children != None)
 					    XFree(children);
 				}
 				break;
@@ -618,18 +620,18 @@ Terminate()
 	XFreeGC(dpy, gc);
 
 	for (i = 0; i < MAX_GROUP; i++) {
-		if (conf.mainwindow.pictures[i] != NULL) {
+		if (conf.mainwindow.pictures[i] != None) {
 			XFreePixmap(dpy, conf.mainwindow.pictures[i]);
 		}
-		if (conf.button.pictures[i] != NULL) {
+		if (conf.button.pictures[i] != None) {
 			XFreePixmap(dpy, conf.button.pictures[i]);
 		}
 	}
 
-	if (icon) {
+	if (icon != None) {
 		XDestroyWindow(dpy, icon);
 	}
-	if (main_win) {
+	if (main_win != None) {
 		XDestroyWindow(dpy, main_win);
 	}
 
@@ -716,8 +718,8 @@ MakeButton(Window parent)
 	Geometry geom = conf.button.geometry;
 
 	parent = GetGrandParent(parent);
-	if (parent == (Window) 0) {
-		return (Window) 0;
+	if (parent == None) {
+		return None;
 	}
 
 	XGetGeometry(dpy, parent, &rwin, &x, &y, &width, &height, &border, &dep);
@@ -725,7 +727,7 @@ MakeButton(Window parent)
 	y = (geom.mask & YNegative) ? height + geom.y - geom.height : geom.y;
 
 	if ((geom.width > width) || (geom.height > height)) {
-		return (Window) 0;
+		return None;
 	}
 
 	memset(&butt_attr, 0, sizeof(butt_attr));
@@ -765,10 +767,12 @@ GetGrandParent(Window w)
 
 	while (1) {
 		if (!XQueryTree(dpy, w, &rwin, &parent, &children, &num)) {
-			return (Window) 0;
+			return None;
 		}
-		if (children)
+
+		if (children != None)
 			XFree(children);
+
 		if (parent == rwin) {
 			return w;
 		}
@@ -799,7 +803,7 @@ GetAppWindow(Window win, Window *core)
 		num--;
 	}
 
-	if (children)
+	if (children != None)
 		XFree(children);
 }
 
