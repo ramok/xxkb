@@ -109,7 +109,7 @@ win_free(Window w)
 		warnx("Window not in list");
 		return;
 	}
-  
+
 	if (prev == NULL)
 		winlist = pt->next;
 	else
@@ -133,6 +133,6 @@ win_free_list(void)
 			XDestroyWindow(dpy, pt->button);
 		}
 		free(pt);
-		pt = tmp;  
+		pt = tmp;
 	}
 }

@@ -112,7 +112,7 @@ struct {
 	int   flag;
 } ControlsTable[] = {
 	{ "add_when_start",		When_start },
-	{ "add_when_create",	When_create }, 
+	{ "add_when_create",	When_create },
 	{ "add_when_change",	When_change },
 	{ "focusout",			Focus_out },
 	{ "two_state",			Two_state },
@@ -386,7 +386,7 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 		 */
 		char res_name[64], *filename, *fullname, *imgpath;
 		size_t len;
-		
+
 		GetRes(db, IMG_TYPE ".path", T_string, True, &imgpath);
 
 #ifdef SVG_GRAPHICS
@@ -449,7 +449,7 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 #ifndef XT_RESOURCE_SEARCH
 	size_t len;
 #endif
-  
+
 	homedir = getenv("HOME");
 
 	XrmInitialize();
