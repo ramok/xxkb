@@ -35,10 +35,10 @@ make PROJECROOT=%{prefix} PIXMAPDIR=%{datadir}/%{name}
 install -d $RPM_BUILD_ROOT%{prefix}/bin
 install -d $RPM_BUILD_ROOT%{datadir}/%{name}
 install -d $RPM_BUILD_ROOT%{prefix}/man/man1
-install -d $RPM_BUILD_ROOT%{docdir}/doc/%{name}-%{version}
+install -d $RPM_BUILD_ROOT%{docdir}/%{name}-%{version}
 install xxkb $RPM_BUILD_ROOT%{prefix}/bin
 install -m 0644 *.xpm $RPM_BUILD_ROOT%{datadir}/%{name}
-install -m 0644 %{documents} $RPM_BUILD_ROOT%{docdir}/doc/%{name}-%{version}
+install -m 0644 %{documents} $RPM_BUILD_ROOT%{docdir}/%{name}-%{version}
 install -m 0644 %{name}.man $RPM_BUILD_ROOT%{prefix}/man/man1/%{name}.1
 
 %files
@@ -55,6 +55,9 @@ install -m 0644 %{name}.man $RPM_BUILD_ROOT%{prefix}/man/man1/%{name}.1
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+
+* Sat Oct 18 2003 Oleg Izhvanov <izh@openlan.ru>
+- RedHat 9.0 building bugfix
 
 * Fri Mar 21 2003 Alexander Shestakov <shura_shestakov@mail.ru>
 - add section %clean
