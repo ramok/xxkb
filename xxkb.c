@@ -282,7 +282,7 @@ main(int argc, char ** argv)
 		while (num != NULL) {
 			app = (Window) 0;
 			GetAppWindow(*child, &app);
-			if (app != NULL) {
+			if (app != NULL && app != main_win && app != icon) {
 				AddWindow(app, *child);
 			}
 			child++;
@@ -501,7 +501,8 @@ main(int argc, char ** argv)
 			case ReparentNotify:
 				repar_evt = &ev.core.xreparent;
 				temp_win = repar_evt->window;
-				if (temp_win != main_win && repar_evt->parent != root_win &&
+				if (temp_win != main_win && temp_win != icon &&
+                                    repar_evt->parent != root_win &&
 				    BASE(repar_evt->parent) != BASE(temp_win) &&
 				    repar_evt->override_redirect != True) {
 					AddWindow(temp_win, repar_evt->parent);
@@ -541,6 +542,8 @@ main(int argc, char ** argv)
 
 			case PropertyNotify:
 				temp_win = ev.core.xproperty.window;
+				if (temp_win == main_win || temp_win == icon)
+				    break;
 				temp_info = win_find(temp_win);
 				if (temp_info == NULL) {
 					Window rwin, parent, *children;
