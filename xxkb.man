@@ -1,0 +1,231 @@
+.TH xxkb 1 "24 Jun 2002" "XXKB"
+
+.SH NAME
+xxkb \- switches and indicates a current keyboard layout.
+.SH SYNOPSIS
+.B xxkb
+.SH DESCRIPTION
+The \fBxxkb\fR program shows the current keyboard layout (an XKB group) and
+allows to switch it with a mouse click. It has some additional features.
+The \fBxxkb\fR remebers the layout for each application window and changes
+the keyboard state accordingly when the window gets a focus. The \fBxxkb\fR
+can place an additional button on a window titlebar and that button is a
+switcher and an indicator for that separate window. If the keyboard map
+has more than two layouts the \fBxxkb\fR can simplify a switching using a
+\fBtwo_state\fR mode. In this mode the \fBxxkb\fR allows to choose two
+layouts, one as a base layout and another one as an alternative layout and
+then switch the keyboard state between them only. Also the \fBxxkb\fR supports
+applications lists which allow to tune its behavior for some separate
+applications.
+  The \fBxxkb\fR works with any window manager.
+.SH USAGE
+  Working as an indicator the \fBxxkb\fR shows a current XKB layout using one of
+four pixmaps and changes the pixmap when you change a layout with the keyboard
+(using the key or the key combination specified in the config file as an XKB
+group switcher) or using any other application which able to change the XKB
+group. Also the \fBxxkb\fR shows the similar pixmaps on each application window
+titlebar which are indicators for separate windows. Since the global indicator
+and the per window indicators duplicates each other you can hide the global
+indicator or all per window indicators using configure options.
+  Also you can use the \fBxxkb\fR as a layout switcher using a mouse button
+click on the main \fBxxkb\fR window or one of the per window indicators.
+In last case you switch the layout for the chosen application.
+.TP 4
+.B MouseButton1
+The first button acts as a layout switcher. If the \fBtwo_state\fR mode
+is active the button click switches the current layout between two selected
+layouts (XKB groups). Otherwise it selects all posible layouts in cycle.
+.TP 4
+.B MouseButton3
+When the \fBtwo_state\fR mode is switched on the third button allows to
+choose an alternative layout. It selects all posible layouts in cycle and
+the layout you stop on becomes the alternative layout. Without the
+\fBtwo_state\fR mode this button action is the same as the first button
+action.
+.TP 4
+.B MouseButton2
+The second (middle) button action depends on the place where you click.
+The click on the main indicator terminates the \fBxxkb\fR. But the click
+on one of the per window indicators simply removes the indicator from the
+titlebar and excludes that application from a set of managed applications.
+Also the second button allows you to add an application into one of three
+lists of the applications which should be ignored (see the
+\fBApplications lists options\fR below). Clicking on the per window indicator
+when the \fBControl\fR key is pressed you add this application to the
+\fBwm_class_class\fR list. If the \fBShift\fR key is pressed the button
+click adds the application to the \fBwm_name\fR list. If both keys are pressed
+the click adds the application to the \fBwm_class_name\fR list.
+In all cases the updated lists will be saved in a per user config file
+\fI~/.xxkbrc\fR.
+.SH CONFIGURE OPTIONS
+The \fBxxkb\fR reads all configure options from two files
+\fIapp\-defaults/XXkb\fR and \fI~/.xxkbrc\fR.
+.SH  Common options
+.TP 4
+.B XXkb.xpm.path
+The directory where the \fBxxkb\fR searches pixmap files.
+.SH  Main window options
+.TP 4
+.B XXkb.mainwindow.enable
+switch on the \fBxxkb\fR main window (yes by default). If a \fIper window
+button\fR mode switched on some users prefer to hide the main window of the
+\fBxxkb\fR.
+.TP 4
+.B XXkb.mainwindow.appicon
+run \fBxxkb\fR as an animated icon. It is usefull for window managers
+which allow 'to dock' applications.
+.TP 4
+.B XXkb.mainwindow.in_tray
+allow to dock \fBxxkb\fR into a system tray. A value of the option should be
+GNOME, KDE or KDE2 in depend on what environment tray you use. (Unfortunately,
+such docklets have a size less than a default icons size for an xxkb main
+window. If you want to use this option you need another set of icons.)
+.TP 4
+.B XXkb.mainwindow.geometry
+the geometry ( WIDTHxHEIGHT{+-}X{+-}Y ) of the main window.
+.TP 4
+.B XXkb.mainwindow.xpm.1
+.TP 4
+.B XXkb.mainwindow.xpm.2
+.TP 4
+.B XXkb.mainwindow.xpm.3
+.TP 4
+.B XXkb.mainwindow.xpm.4
+pixmap file names for each indicated group. If your symbols map has less
+than four groups the unused group icons can be ommited. If the file name
+begins from '/' it means full path for the file. Otherwise it means the
+relative path begining from the \fBXXkb.xpm.path\fR value.
+.SH  Operation mode options.
+Since the \fBxxkb\fR can keep the keyboard state for each application and
+restore the state when the focus is changed there are group of options which
+controls how the \fBxxkb\fR finds the application windows.
+.TP 4
+.B XXkb.controls.add_when_start 
+If this mode is switched on (default) the \fBxxkb\fR at start time tries
+to find all application already run.
+.TP 4
+.B XXkb.controls.add_when_create 
+In this mode the \fBxxkb\fR gets a new application window at time when the
+application creates it. It is the base mode but I can't guaranty it works
+with all window managers.
+.TP 4
+.B XXkb.controls.add_when_change 
+In this mode the \fBxxkb\fR doesn't catch the windows at their creation
+but adds windows to the managed windows list if the keyboard state changes
+when the window is focused. It's an additional mode (not recommended) and
+may be usefull only if the \fBadd_when_create\fR mode for some reason
+doesn't work.
+.TP 4
+.B XXkb.controls.focusout 
+It makes the \fBxxkb\fR reset the keyboard group when the focus leaves
+the window. The mode makes sense with the \fBadd_when_change\fR mode only.
+.TP 4
+.B XXkb.button.enable 
+If this mode is switched on the \fBxxkb\fR adds to a titlebar of each managed
+window an additional button which is the indicator and the layout switcher
+for that separate window.
+.TP 4
+.B XXkb.controls.button_delete 
+This mode (switched on by default) allows user to remove the per window button
+using a mouse middle button click. Although the \fBxxkb\fR tries to ignore
+the windows where the keyboard layout switching doesn't make sense, such
+windows can still appear. Or there are windows where an user for some reason
+doesn't want to have the button.
+.TP 4
+.B XXkb.controls.button_delete_and_forget 
+This mode in addition to previous one makes \fBxxkb\f to forget the window
+which button is deleted.  It means the \fBxxkb\f will not remeber the keyboard
+state changes in this window and restore this state when the window will be
+focused.
+.TP 4
+.B XXkb.controls.two_state 
+Swithcing between two chosen keyboard layouts only.
+If the XKB symbols map has more than two groups and not all of them are
+needed for each application the \fBxxkb\fR allows to skip unneeded layouts
+at the layout switching. You can select one group as a base group and anoter
+one as an alternative group and then switch between these two groups only.
+The base group is common for all applications (usually it contains ASCII)
+but the alternative group can be chosen for each application window separately.
+In this mode a mouse right button allows to select the alternative group
+and a mouse left button as well as the key which configured as the layout
+switcher change the current state between two selected layouts only.
+  This mode uses two additional config options:
+.TP 4
+.B XXkb.group.base
+the base group (integer 1..4).
+.TP 4
+.B XXkb.group.alt
+the default alternative group (integer 1..4).
+.SH The application window button options.
+All these options make sense if the
+.B XXkb.button.enable
+switched on. The button which the \fBxxkb\fR attaches to the titlebar is not
+an usual window manager button but the window (with a pixmap) owned by
+the xxkb itself. It means that in some cases an user need to tune the button
+size and the position for the button looks like a window manager button.
+.TP 4
+.B XXkb.button.geometry
+the button geometry ( WIDTHxHEIGHT{+-}X{+-}Y ).
+.TP 4
+.B XXkb.button.gravity 
+the button gravity. It defines how the button position changes when you resize
+the window. It value should be one of
+.B North, NorthEast, NorthWest, South, SouthEast, SouthWest, East, West
+or
+.B Center.
+The default value is \fBNorthEast\fR.
+.TP 4
+.B XXkb.button.xpm.1
+.TP 4
+.B XXkb.button.xpm.2
+.TP 4
+.B XXkb.button.xpm.3
+.TP 4
+.B XXkb.button.xpm.4 
+the pixmap file names (the same as for the \fBXXkb.mainwindow.xpm.*\fR options).
+.SH  Bell options.
+.TP 4
+.B XXkb.bell.enable
+enables the keyboard bell when the layout changes.
+.TP 4
+.B XXkb.bell.percent
+an argument value for the XBell call.
+.SH  Applications lists options.
+The \fBxxkb\fR allows to specify lists of applications that requires some
+special actions. The applications can be specified using their
+\fBWM_CLASS\fR or \fBWM_NAME\fR properties.
+  A common form of such option is
+
+\fBXXkb.app_list.\fIproperty\fB.\fIaction\fB: \fIan applications list\fR
+
+  The \fIaction\fR here can be one of \fBignore\fR, \fBstart_alt\fR or
+\fBalt_group\fIn\fR.
+The \fBignore\fR action means that the \fBxxkb\fR must ignore the windows of
+those applications and doesn't add them to the managed windows set. The
+\fBstart_alt\fR action means that the \fBxxkb\fR must set the keyboard state
+to the alternative layout when the application starts. And the \fBalt_group1,
+alt_group2, alt_group3\fR or \fBalt_group4\fR actions allow to specify the
+alternative layout for some applications if this layout should be different
+from the common alternative layout specified in the \fBXXkb.group.alt\fR option.
+  The \fIproperty\fR can be one of \fBwm_class_class, wm_class_name\fR or
+\fBwm_name\fR.
+The \fBxxkb\fR can identify an application using its window properties
+\fBWM_CLASS\fR or \fBWM_NAME\fR. The \fBWM_CLASS\fR property actually consists
+of two parts - a \fBres_class\fR and a \fBres_name\fR. Thus the \fIproperty\fR
+field specifies what property or part of property should be considered for the
+application identification.
+  By default all these lists are empty. A not empty list is a sequence of words
+separated by space/tab. The \fBxxkb\fR accepts an asterisk as a part of word.
+Long lists can be continued to the next line using a backslash as the last
+char in the line.
+  For example:
+  XXkb.app_list.wm_name.ignore: Fvwm* *clock \\
+.br
+                                Xman
+.TP 4
+.B XXkb.ignore.reverse
+This option changes a meaning of the \fBXxkb.*.ignore\fR  list. If the option
+switched on the \fBignore\fR list becomes the list of windows which should
+be managed but all other should be ignored.
+.SH AUTHOR
+Ivan Pascal

@@ -1,0 +1,51 @@
+
+! XXkb.xpm.path: /usr/X11R6/share/xxkb
+
+XXkb.group.base: 1
+XXkb.group.alt: 2
+
+XXkb.mainwindow.enable: yes
+XXkb.mainwindow.appicon: no
+XXkb.mainwindow.geometry: 48x48
+XXkb.mainwindow.xpm.1: en48.xpm
+XXkb.mainwindow.xpm.2: ru48.xpm
+XXkb.mainwindow.xpm.3: su48.xpm
+XXkb.mainwindow.xpm.4:
+
+! XXkb.mainwindow.in_tray:
+! possible values - KDE, KDE2, GNOME
+
+XXkb.button.enable: yes
+XXkb.button.geometry: 15x15-60+7
+XXkb.button.gravity: NorthEast
+XXkb.button.xpm.1: en15.xpm
+XXkb.button.xpm.2: ru15.xpm
+XXkb.button.xpm.3: su15.xpm
+XXkb.button.xpm.4:
+
+XXkb.controls.add_when_start: yes
+XXkb.controls.add_when_create: yes
+XXkb.controls.add_when_change: no
+XXkb.controls.focusout: no
+XXkb.controls.two_state: yes
+XXkb.controls.button_delete: yes
+XXkb.controls.button_delete_and_forget: yes
+XXkb.controls.mainwindow_delete: yes
+
+XXkb.mousebutton.1.reverse: no
+XXkb.mousebutton.3.reverse: no
+
+XXkb.bell.enable: no
+XXkb.bell.percent: -50
+
+XXkb.ignore.reverse: no
+
+! XXkb.app_list.<match>.<action>: <list>
+! <match> is one of "wm_class_class", "wm_class_name", "wm_name", "property"
+! <action> is one of "ignore", "start_alt", "alt_groupM" (M - 1..4) 
+! For example:
+!   XXkb.app_list.wm_class_class.ignore: *clock Fvwm*
+!   XXkb.app_list.wm_class_name.start_alt: licq
+!
+!  ignore windows in KDE tray
+!  XXkb.app_list.property.ignore: _KDE_NET_WM_SYSTEM_TRAY_WINDOW_FOR

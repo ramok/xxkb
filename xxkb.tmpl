@@ -1,0 +1,26 @@
+/*
+ * InstallMultipleByMaskDestFlags - generate rules to install multiple files
+ * matching specified mask during a particular step in the build using a
+ * specific set of install flags.
+ */
+
+#ifndef InstallMultipleByMaskDestFlags
+#define InstallMultipleByMaskDestFlags(step,dir,mask,dest,flags)	@@\
+step:: dir								@@\
+	MakeDir($(DESTDIR)dest)						@@\
+	@MakeFlagsToShellFlags(i,set +e); \				@@\
+	for i in `ls dir/mask`; do \					@@\
+		(set -x; $(INSTALL) $(INSTALLFLAGS) flags $$i $(DESTDIR)dest); \	@@\
+	done
+#endif /* InstallMultipleByMaskDestFlags */
+
+#ifndef InstallMultipleByMaskDest
+#define InstallMultipleByMaskDest(step,dir,mask,dest)			@@\
+InstallMultipleByMaskDestFlags(step,dir,mask,dest,$(INSTDATFLAGS))
+#endif /* InstallMultipleByMaskDest */
+
+#ifndef InstallMultipleByMask
+#define InstallMultipleByMask(dir,mask,dest)				@@\
+InstallMultipleByMaskDest(install,dir,mask,dest)
+#endif /* InstallMultipleByMask */
+
