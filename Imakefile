@@ -10,7 +10,7 @@ OBJS = xxkb.o resource.o wlist.o
 PIXMAPS = pixmaps\/*.xpm
 
 DEFINES = -DAPPDEFDIR=\"$(DESTDIR)$(XAPPLOADDIR)\"
-CDEBUGFLAGS = -g -O
+CDEBUGFLAGS = -g
 SED = sed
 
 ComplexProgramTarget(xxkb)

@@ -541,8 +541,7 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 			list->action = ActionTable[j].action
 				| ActionTable[j].group & GrpMask;
 			list->type = MatchTable[i].type;
-
-			FreeSearchList(conf->app_lists[i]);
+			list->next = conf->app_lists[i];
 			conf->app_lists[i] = list;
 		}
 	}
@@ -561,8 +560,7 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 
 		list->action = Ignore;
 		list->type = MatchTable[i].type;
-
-		FreeSearchList(conf->app_lists[i]);
+		list->next = conf->app_lists[i];
 		conf->app_lists[i] = list;
 	}
 
@@ -641,9 +639,17 @@ AddAppToIgnoreList(conf, app_ident, ident_type)
 	}
 	list->action = Ignore;
 	list->type = ident_type;
-
-	FreeSearchList(conf->app_lists[ident_type]);
+	list->next = conf->app_lists[ident_type];
 	conf->app_lists[ident_type] = list;
+
+	for (prev = list, cur = list->next;
+		 cur != NULL && cur->action != Ignore;
+		 prev = cur, cur = cur->next) /* empty body */;
+
+	if (cur != NULL) {
+		prev->next = cur->next;
+		FreeSearchList(cur);
+	}
 
 	/* we have an updated list now,
 	 * let's update the resource database
@@ -730,6 +736,7 @@ MakeSearchList(char *str)
 	ret->num = 0;
 	ret->idx = NULL;
 	ret->list = NULL;
+	ret->next = NULL;
 
 	len = strlen(str);
 	if (len == 0) return ret;

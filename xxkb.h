@@ -46,12 +46,13 @@ typedef int  ListAction;
 #define InitAltGrp (1<<3)
 #define Ignore     (1<<4)
 
-typedef struct {
+typedef struct __SearchList {
 	ListAction	action;
 	MatchType	type;
 	int			num;
 	char		**idx;
 	char		*list;
+	struct __SearchList *next;
 } SearchList;
 
 typedef	struct {

@@ -725,14 +725,14 @@ searchInList(SearchList *list, char *ident)
 	int i;
 	ListAction ret = 0;
 
-	if (list == NULL)
-		return 0;
-
-	for (i = 0; i < list->num; i++) {
-		if (Compare(list->idx[i], ident)) {
-			ret |= list->action; /*???*/
-			break;
+	while (list != NULL) {
+		for (i = 0; i < list->num; i++) {
+			if (Compare(list->idx[i], ident)) {
+				ret |= list->action; /*???*/
+				break;
+			}
 		}
+		list = list->next;
 	}
 
 	return ret;
@@ -746,35 +746,35 @@ searchInPropList(SearchList *list, Window win)
 	Atom *props, *atoms;
 	ListAction ret = 0;
 
-	if (list == NULL)
-		return 0;
+	while (list != NULL) {
+		atoms = (Atom *) calloc(list->num, sizeof(Atom));
+		if (atoms == NULL)
+			return 0;
 
-	atoms = (Atom *) calloc(list->num, sizeof(Atom));
-	if (atoms == NULL)
-		return 0;
-
-	XInternAtoms(dpy, list->idx, list->num, False, atoms);
-	for (i = 0, j = 0; i < list->num; i++) {
-		if (atoms[i] != None) {
-			j = 1;
-			break;
+		XInternAtoms(dpy, list->idx, list->num, False, atoms);
+		for (i = 0, j = 0; i < list->num; i++) {
+			if (atoms[i] != None) {
+				j = 1;
+				break;
+			}
 		}
-	}
-	if (j != 0) {
-		props = XListProperties(dpy, win, &prop_num);
-		if (props != NULL) {
-			for (i = 0; i < list->num; i++) {
-				if (atoms[i] != None) {
-					for (j = 0; j < prop_num; j++) {
-						if (atoms[i] == props[j])
-							ret |= list->action;
+		if (j != 0) {
+			props = XListProperties(dpy, win, &prop_num);
+			if (props != NULL) {
+				for (i = 0; i < list->num; i++) {
+					if (atoms[i] != None) {
+						for (j = 0; j < prop_num; j++) {
+							if (atoms[i] == props[j])
+								ret |= list->action;
+						}
 					}
 				}
+				XFree(props);
 			}
-			XFree(props);
 		}
+		XFree(atoms);
+		list = list->next;
 	}
-	XFree(atoms);
 
 	return ret;
 }
