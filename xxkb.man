@@ -7,9 +7,9 @@ xxkb \- switches and indicates a current keyboard layout.
 .SH DESCRIPTION
 The \fBxxkb\fR program shows the current keyboard layout (an XKB group) and
 allows to switch it with a mouse click. It has some additional features.
-The \fBxxkb\fR remebers the layout for each application window and changes
+The \fBxxkb\fR remembers the layout for each application window and changes
 the keyboard state accordingly when the window gets a focus. The \fBxxkb\fR
-can place an additional button on a window titlebar and that button is a
+can place an additional button on a window title bar and that button is a
 switcher and an indicator for that separate window. If the keyboard map
 has more than two layouts the \fBxxkb\fR can simplify a switching using a
 \fBtwo_state\fR mode. In this mode the \fBxxkb\fR allows to choose two
@@ -24,7 +24,7 @@ four pixmaps and changes the pixmap when you change a layout with the keyboard
 (using the key or the key combination specified in the config file as an XKB
 group switcher) or using any other application which able to change the XKB
 group. Also the \fBxxkb\fR shows the similar pixmaps on each application window
-titlebar which are indicators for separate windows. Since the global indicator
+title bar which are indicators for separate windows. Since the global indicator
 and the per window indicators duplicates each other you can hide the global
 indicator or all per window indicators using configure options.
   Also you can use the \fBxxkb\fR as a layout switcher using a mouse button
@@ -34,11 +34,11 @@ In last case you switch the layout for the chosen application.
 .B MouseButton1
 The first button acts as a layout switcher. If the \fBtwo_state\fR mode
 is active the button click switches the current layout between two selected
-layouts (XKB groups). Otherwise it selects all posible layouts in cycle.
+layouts (XKB groups). Otherwise it selects all possible layouts in cycle.
 .TP 4
 .B MouseButton3
 When the \fBtwo_state\fR mode is switched on the third button allows to
-choose an alternative layout. It selects all posible layouts in cycle and
+choose an alternative layout. It selects all possible layouts in cycle and
 the layout you stop on becomes the alternative layout. Without the
 \fBtwo_state\fR mode this button action is the same as the first button
 action.
@@ -47,7 +47,7 @@ action.
 The second (middle) button action depends on the place where you click.
 The click on the main indicator terminates the \fBxxkb\fR. But the click
 on one of the per window indicators simply removes the indicator from the
-titlebar and excludes that application from a set of managed applications.
+title bar and excludes that application from a set of managed applications.
 Also the second button allows you to add an application into one of three
 lists of the applications which should be ignored (see the
 \fBApplications lists options\fR below). Clicking on the per window indicator
@@ -72,7 +72,7 @@ button\fR mode switched on some users prefer to hide the main window of the
 \fBxxkb\fR.
 .TP 4
 .B XXkb.mainwindow.appicon
-run \fBxxkb\fR as an animated icon. It is usefull for window managers
+run \fBxxkb\fR as an animated icon. It is useful for window managers
 which allow 'to dock' applications.
 .TP 4
 .B XXkb.mainwindow.in_tray
@@ -91,9 +91,9 @@ border width in pixels.
 .TP 4
 .B XXkb.mainwindow.xpm.N
 pixmap file names for each indicated group N. If your symbols map has less
-than four groups the unused group icons can be ommited. If the file name
+than four groups the unused group icons can be omitted. If the file name
 begins from '/' it means full path for the file. Otherwise it means the
-relative path begining from the \fBXXkb.xpm.path\fR value.
+relative path beginning from the \fBXXkb.xpm.path\fR value.
 .TP 4
 .B XXkb.mainwindow.label.enable
 enable labels to be printed instead of images. Group descriptions will
@@ -128,7 +128,7 @@ with all window managers.
 In this mode the \fBxxkb\fR doesn't catch the windows at their creation
 but adds windows to the managed windows list if the keyboard state changes
 when the window is focused. It's an additional mode (not recommended) and
-may be usefull only if the \fBadd_when_create\fR mode for some reason
+may be useful only if the \fBadd_when_create\fR mode for some reason
 doesn't work.
 .TP 4
 .B XXkb.controls.focusout 
@@ -144,15 +144,15 @@ doesn't want to have the button.
 .TP 4
 .B XXkb.controls.button_delete_and_forget 
 This mode in addition to previous one makes \fBxxkb\fR to forget the window
-which button is deleted.  It means the \fBxxkb\f will not remeber the keyboard
+which button is deleted.  It means the \fBxxkb\f will not remember the keyboard
 state changes in this window and restore this state when the window will be
 focused.
 .TP 4
 .B XXkb.controls.two_state 
-Swithcing between two chosen keyboard layouts only.
+Switching between two chosen keyboard layouts only.
 If the XKB symbols map has more than two groups and not all of them are
 needed for each application the \fBxxkb\fR allows to skip unneeded layouts
-at the layout switching. You can select one group as a base group and anoter
+at the layout switching. You can select one group as a base group and another
 one as an alternative group and then switch between these two groups only.
 The base group is common for all applications (usually it contains ASCII)
 but the alternative group can be chosen for each application window separately.
@@ -170,7 +170,7 @@ the default alternative group (integer 1..4).
 All these options make sense if the \fBXXkb.button.enable\fR switched on.
 .TP 4
 .B XXkb.button.enable 
-If turned on, the \fBxxkb\fR adds an additional button to a titlebar of each
+If turned on, the \fBxxkb\fR adds an additional button to a title bar of each
 managed window which is the indicator and the layout switcher for that
 particular window.
 These buttons are not usual window manager buttons but windows
@@ -197,7 +197,7 @@ the pixmap file names (the same as for the \fBXXkb.mainwindow.xpm.*\fR options).
 .B XXkb.button.border.color
 .TP 4
 .B XXkb.button.border.width
-see description of their mainwindow counterparts.
+see description of their main window counterparts.
 .SH  Bell options
 .TP 4
 .B XXkb.bell.enable
