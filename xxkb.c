@@ -13,10 +13,8 @@
 #include <X11/Xlibint.h>
 #include <X11/Xatom.h>
 
-#include "wlist.h"
 #include "xxkb.h"
-
-#define BASE(w)	(w & base_mask)
+#include "wlist.h"
 
 #ifdef XT_RESOURCE_SEARCH
 #include <X11/IntrinsicP.h>
@@ -24,36 +22,42 @@ static XtAppContext app_cont;
 #endif
 
 #define XEMBED_WINDOW	0
+#define BASE(w)			(w & base_mask)
 
-XXkbConfig conf;
 
+/* Global variables */
 Display *dpy;
-int scr;
-GC gc;
-XkbEvent ev;
 
-Window RootWin, MainWin, icon, win, focused, base_mask;
-int revert, grp;
-Atom systray_selection, take_focus_atom, wm_del_win, wm_manager, xembed;
+/* Local variables */
+static int win_x = 0, win_y = 0, scr, revert, grp;
+static GC gc;
+static XXkbConfig conf;
+static Window RootWin, MainWin, icon, win, focused, base_mask, systray = None;
+static Atom systray_selection, take_focus_atom, wm_del_win, wm_manager, xembed;
+static WInfo def_info, *info;
+static kbdState def_state;
+static XFocusChangeEvent focused_event;
+static XErrorHandler DefErrHandler;
 
-WInfo def_info, *info, *tmp_info;
-kbdState def_state;
-XFocusChangeEvent focused_event;
-XErrorHandler DefErrHandler;
 
-Window systray = None;
-int win_x = 0;
-int win_y = 0;
-
-/* Forward declaration */
+/* Forward declarations */
 static ListAction GetWindowAction(Window w);
-static char* GetWindowIdent(Window appwin, MatchType type);
 static MatchType GetTypeFromState(unsigned int state);
-static void IgnoreWindow(WInfo *info, MatchType type);
 static Window GetSystray(Display *dpy);
+static Window MakeButton(Window parent);
+static Window GetGrandParent(Window w);
+static char* GetWindowIdent(Window appwin, MatchType type);
+static void IgnoreWindow(WInfo *info, MatchType type);
 static void DockWindow(Display *dpy, Window systray, Window w);
-static void MoveOrigin(Display *dpy, Window w);
+static void MoveOrigin(Display *dpy, Window w, int *w_x, int *w_y);
 static void SendDockMessage(Display* dpy, Window w, long message, long data1, long data2, long data3);
+static void GetGC(Window w, GC *gc);
+static void Reset(void);
+static void Terminate(void);
+static void GetAppWindow(Window w, Window *app);
+static WInfo* AddWindow(Window w, Window parent);
+static Bool ExpectInput(Window win);
+
 
 int
 main(int argc, char ** argv)
@@ -61,6 +65,7 @@ main(int argc, char ** argv)
 	int  xkbEventType, xkbError, reason_rtrn, mjr, mnr;
 	Bool fout_flag = False;
 	Geometry geom;
+	XkbEvent ev;
 	XWMHints	*wm_hints;
 	XSizeHints	*size_hints;
 	XClassHint	*class_hints;
@@ -157,7 +162,7 @@ main(int argc, char ** argv)
 	wm_hints->flags = InputHint | WindowGroupHint;
 	XSetWMHints(dpy, MainWin, wm_hints);
 
-	/* ClassHint */
+	/* ClassHints */
 	class_hints = XAllocClassHint();
 	if (class_hints == NULL) errx(1, "Unable to allocate class hints");
 	class_hints->res_name  = APPNAME;
@@ -231,7 +236,7 @@ main(int argc, char ** argv)
 	if (icon)
 		XSelectInput(dpy, icon, ExposureMask | ButtonPressMask);
 
-	getGC(MainWin, &gc);
+	GetGC(MainWin, &gc);
 
 	/* set current defaults */
 	def_state.group = conf.Base_group;
@@ -280,9 +285,11 @@ main(int argc, char ** argv)
 					if ((focused == None) || (focused == PointerRoot))
 						break;
 					if (focused != info->win) {
+						WInfo *tmp_info;
 						tmp_info = AddWindow(focused, focused);
 						if (tmp_info != NULL) {
-							info = tmp_info; info->state.group = grp;
+							info = tmp_info;
+							info->state.group = grp;
 						}
 					}
 				}
@@ -309,10 +316,10 @@ main(int argc, char ** argv)
 					info->state.alt = grp;
 
 				if (info->button != NULL)
-					button_update(info->button, gc, grp);
-				win_update(MainWin, gc, grp);
+					button_update(info->button, &conf, gc, grp);
+				win_update(MainWin, &conf, gc, grp, win_x, win_y);
 				if (icon != NULL)
-					win_update(icon, gc, grp);
+					win_update(icon, &conf, gc, grp, win_x, win_y);
 				if (conf.controls & Bell_enable)
 					XBell(dpy, conf.Bell_percent);
 				break;
@@ -321,21 +328,23 @@ main(int argc, char ** argv)
 				break;
 			}
 		} /* xkb events */
-		else
+		else {
+			WInfo *tmp_info;
 			switch (ev.type) {          /* core events */
 			case Expose:	/* Update our window or button */
 				if (ev.core.xexpose.count != 0)
 					break;
 				win = ev.core.xexpose.window;
 				if (win == MainWin)
-					MoveOrigin(dpy, MainWin);
+					MoveOrigin(dpy, MainWin, &win_x, &win_y);
 				if ((win == MainWin) || (icon && (win == icon))) {
-					win_update(win, gc, info->state.group);
+					win_update(win, &conf, gc, info->state.group, win_x, win_y);
 				}
 				else {
+					WInfo *tmp_info;
 					tmp_info = button_find(win);
 					if (tmp_info)
-						button_update(win, gc, tmp_info->state.group);
+						button_update(win, &conf, gc, tmp_info->state.group);
 				}
 				break;
 
@@ -385,6 +394,7 @@ main(int argc, char ** argv)
 									IgnoreWindow(info, type);
 									Reset();
 								} else {
+									WInfo *tmp_info;
 									tmp_info = button_find(win);
 									if (tmp_info == NULL)
 										break;
@@ -417,6 +427,7 @@ main(int argc, char ** argv)
 
 			case FocusOut:
 				if (conf.controls & Focus_out) {
+					WInfo *tmp_info;
 					tmp_info = info;
 					info = &def_info;
 					info->state.group = conf.Base_group; /*???*/
@@ -474,7 +485,8 @@ main(int argc, char ** argv)
 				break;
 
 			case ClientMessage:
-				if (ev.core.xclient.message_type != None && ev.core.xclient.format == 32) {
+				if (ev.core.xclient.message_type != None
+					&& ev.core.xclient.format == 32) {
 					win = ev.core.xclient.window;
 					if (ev.core.xclient.message_type == wm_manager) {
 						if (ev.core.xclient.data.l[1] == systray_selection) {
@@ -486,11 +498,12 @@ main(int argc, char ** argv)
 					}
 					else
 #ifdef XEMBED_WINDOW	
-					if(ev.core.xclient.message_type == xembed && (win == MainWin)) {
+					if(ev.core.xclient.message_type == xembed
+					   && (win == MainWin)) {
 						/* XEMBED_EMBEDDED_NOTIFY */
 						if(ev.core.xclient.data.l[1] == 0) {
-							MoveOrigin(dpy, MainWin);
-							win_update(MainWin, gc, info->state.group);
+							MoveOrigin(dpy, MainWin, &win_x, &win_y);
+							win_update(MainWin, &conf, gc, info->state.group, win_x, win_y);
 						}
 					}
 					else
@@ -515,12 +528,13 @@ main(int argc, char ** argv)
 				warnx("Unknown event %d", ev.type);
 				break;
 			}
+		}
 	}
 
 	return(0);
 }
 
-void
+static void
 Reset()
 {
 	info = &def_info;
@@ -528,7 +542,7 @@ Reset()
 	XkbLockGroup(dpy, XkbUseCoreKbd, conf.Base_group);
 }
 
-void
+static void
 Terminate()
 {
 	int i;
@@ -553,8 +567,8 @@ Terminate()
 	exit(0);
 }
 
-void
-getGC(Window win, GC * gc)
+static void
+GetGC(Window win, GC * gc)
 {
 	unsigned long valuemask = 0; /* No data in ``values'' */
 	XGCValues values;
@@ -562,7 +576,7 @@ getGC(Window win, GC * gc)
 /*	XSetForeground(dpy, *gc, BlackPixel(dpy, scr)); */
 }
 
-WInfo*
+static WInfo*
 AddWindow(Window win, Window parent)
 {
 	int ignore = 0;
@@ -614,7 +628,7 @@ AddWindow(Window win, Window parent)
 	return info;
 }
 
-Window
+static Window
 MakeButton(Window parent)
 {
 	Window button, rwin;
@@ -649,7 +663,7 @@ MakeButton(Window parent)
 	return button;
 }
 
-Window
+static Window
 GetGrandParent(Window w)
 {
 	Window rwin, parent, *child;
@@ -664,7 +678,7 @@ GetGrandParent(Window w)
 	}
 }
 
-void
+static void
 GetAppWindow(Window win, Window *core)
 {
 	Window rwin, parent, *children, *child;
@@ -811,7 +825,7 @@ GetWindowAction(Window w)
 	return ret;
 }
 
-Bool
+static Bool
 ExpectInput(Window w)
 {
 	Bool ok = False;
@@ -946,8 +960,8 @@ ErrHandler(Display *dpy, XErrorEvent *err)
 	}
 }
 
-static
-Window GetSystray(Display *dpy)
+static Window
+GetSystray(Display *dpy)
 {
 	Window systray = None;
 	
@@ -965,8 +979,8 @@ Window GetSystray(Display *dpy)
 	return systray;
 }
 
-static
-void SendDockMessage(Display* dpy, Window w, long message, long data1, long data2, long data3)
+static void
+SendDockMessage(Display* dpy, Window w, long message, long data1, long data2, long data3)
 {
 	XEvent ev;
 	
@@ -985,24 +999,23 @@ void SendDockMessage(Display* dpy, Window w, long message, long data1, long data
 	XFlush(dpy);
 }
 
-static
-void DockWindow(Display *dpy, Window systray, Window w)
+static void
+DockWindow(Display *dpy, Window systray, Window w)
 {
 #ifdef XEMBED_WINDOW
 	Atom r;
 	unsigned long info[2] = { 0, 1 };
 	/* Make window embeddable */
 	r = XInternAtom(dpy, "_XEMBED_INFO", False);
-	XChangeProperty(dpy, w, r, r, 32, 0,
-			(unsigned char *)&info, 2);
+	XChangeProperty(dpy, w, r, r, 32, 0, (unsigned char *)&info, 2);
 #endif
 	if(systray != None) {
 		SendDockMessage(dpy, systray, SYSTEM_TRAY_REQUEST_DOCK, w, 0, 0);
 	}
 }
 
-static
-void MoveOrigin(Display *dpy, Window w)
+static void
+MoveOrigin(Display *dpy, Window w, int *w_x, int *w_y)
 {
 	Window rwin;
 	Geometry geom;
@@ -1015,10 +1028,10 @@ void MoveOrigin(Display *dpy, Window w)
 
 	/* X axis */
 	if(width > geom.width) {
-		win_x = (width - geom.width) / 2;
+		*w_x = (width - geom.width) / 2;
 	}
 	/* Y axis */
 	if(height > geom.height) {
-		win_y = (height - geom.height) / 2;
+		*w_y = (height - geom.height) / 2;
 	}
 }

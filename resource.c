@@ -21,7 +21,6 @@
 #include <X11/Xutil.h>
 #include <X11/XKBlib.h>
 
-#include "wlist.h"
 #include "xxkb.h"
 
 #ifdef XT_RESOURCE_SEARCH
@@ -42,14 +41,17 @@ static int LoadImage(Display *dpy, char *filename, Pixmap *map);
 
 
 /* Deprecated. Keep temporary for compatibility. */
-static char  *ignoreMatch[] = {
-	"ignore.wm_class.class",
-	"ignore.wm_class.name",
-	"ignore.wm_name",
-	NULL
+static
+struct {
+	char  *name;
+} IgnoreTable[] = {
+	{ "ignore.wm_class.class" },
+	{ "ignore.wm_class.name" },
+	{ "ignore.wm_name" }
 };
 
 /* Deprecated. Maintained only for compatibility reasons. */
+static
 struct {
 	char *name;
 	int  res;
@@ -65,7 +67,8 @@ struct {
 	{ "Center",    CenterGravity }
 };
 
-/* Keep in sync with MatchType. */
+/* Keep in sync with MatchType and IgnoreTable. */
+static
 struct {
 	char      *name;
 	MatchType type;
@@ -76,6 +79,7 @@ struct {
 	{ "property",       Prop }
 };
 
+static
 struct {
 	char       *name;
 	ListAction action;
@@ -89,6 +93,7 @@ struct {
 	{ "ignore",     Ignore,     0 }
 };
 
+static
 struct {
 	char  *name;
 	int   flag;
@@ -115,12 +120,7 @@ struct {
  */
 
 static void
-GetRes(db, name, type, required, value)
-	XrmDatabase db;
-	char	*name;
-	ResType type;
-	Bool	required;
-	void	*value;
+GetRes(XrmDatabase db, char *name, ResType type, Bool required, void *value)
 {
 	XrmValue val;
 	Bool ok = False;
@@ -170,11 +170,7 @@ GetRes(db, name, type, required, value)
 }
 
 static void
-SetRes(db, name, type, val)
-	XrmDatabase db;
-	char	*name;
-	ResType type;
-	void	*val;
+SetRes(XrmDatabase db, char *name, ResType type, void *val)
 {
 	char *full_res_name;
 
@@ -189,11 +185,7 @@ SetRes(db, name, type, val)
 }
 
 static void
-GetColorRes(dpy, db, name, color)
-	Display *dpy;
-	XrmDatabase db;
-	char	*name;
-	unsigned int *color;
+GetColorRes(Display *dpy, XrmDatabase db, char *name, unsigned int *color)
 {
 	XColor scr_def, exact_def;
 	Status stat;
@@ -214,10 +206,7 @@ GetColorRes(dpy, db, name, color)
 }
 
 static void
-GetControlRes(db, name, controls, flag)
-	XrmDatabase db;
-	char *name;
-	int *controls, flag;
+GetControlRes(XrmDatabase db, char *name, int *controls, int flag)
 {
 	Bool set;
 	GetRes(db, name, T_bool, True, &set);
@@ -228,11 +217,7 @@ GetControlRes(db, name, controls, flag)
 }
 
 static void
-GetElementRes(dpy, db, window_name, element)
-	Display     *dpy;
-	XrmDatabase db;
-	char        *window_name;
-	XXkbElement *element;
+GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *element)
 {
 	int i, mask;
 	Bool labels_enabled;
@@ -552,9 +537,9 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 	}
 
 	/* keep temporary for compatibility */
-	for (i = 0; ignoreMatch[i]; i++) {
+	for (i = 0; i < countof(IgnoreTable); i++) {
 		str_list = NULL;
-		GetRes(db, ignoreMatch[i], T_string, False, &str_list);
+		GetRes(db, IgnoreTable[i].name, T_string, False, &str_list);
 		if (str_list == NULL)
 			continue;
 
@@ -581,10 +566,7 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 
 
 void
-AddAppToIgnoreList(conf, app_ident, ident_type)
-	XXkbConfig	*conf;
-	char		*app_ident;
-	MatchType	ident_type;
+AddAppToIgnoreList(XXkbConfig *conf, char *app_ident, MatchType ident_type)
 {
 	XrmDatabase db;
  	SearchList *cur, *prev, *list;
@@ -816,8 +798,7 @@ FreeSearchList(SearchList *list)
  */
 
 static char*
-GetAppListName(match, action)
-	char *match, *action;
+GetAppListName(char *match, char *action)
 {
 	char *res_patt = "app_list.%s.%s", *res_name;
 	size_t len;

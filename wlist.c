@@ -10,15 +10,13 @@
 
 #include <X11/Xlib.h>
 
-#include "wlist.h"
 #include "xxkb.h"
+#include "wlist.h"
 
-extern Display *dpy;
-extern XXkbConfig conf;
-extern win_x, win_y;
+static WInfo *winlist = NULL, *last = NULL;
 
-WInfo* win_find(w)
-	Window w;
+WInfo*
+win_find(Window w)
 {
 	WInfo *pt = winlist;
 	while (pt != NULL) {
@@ -28,8 +26,8 @@ WInfo* win_find(w)
 	return pt;
 }
 
-WInfo* button_find(w)
-	Window w;
+WInfo*
+button_find(Window w)
 {
 	WInfo *pt = winlist;
 	while (pt != NULL) {
@@ -40,36 +38,29 @@ WInfo* button_find(w)
 }
 
 void
-win_update(win, gc, group)
-	Window	win;
-	GC		gc;
-	int		group;
+win_update(Window win, XXkbConfig *conf, GC gc, int group, int win_x, int win_y)
 {
-	if (win && conf.mainwindow.pictures[group])
-		XCopyArea(dpy, conf.mainwindow.pictures[group], win, gc,
+	if (win && conf->mainwindow.pictures[group])
+		XCopyArea(dpy, conf->mainwindow.pictures[group], win, gc,
 				  0, 0,
-				  conf.mainwindow.geometry.width,
-				  conf.mainwindow.geometry.height,
+				  conf->mainwindow.geometry.width,
+				  conf->mainwindow.geometry.height,
 				  win_x, win_y);
 }
 
 void
-button_update(win, gc, group)
-	Window	win;
-	GC		gc;
-	int		group;
+button_update(Window win, XXkbConfig *conf, GC gc, int group)
 {
-	if (win && conf.button.pictures[group])
-		XCopyArea(dpy, conf.button.pictures[group], win, gc,
+	if (win && conf->button.pictures[group])
+		XCopyArea(dpy, conf->button.pictures[group], win, gc,
 				  0, 0,
-				  conf.button.geometry.width,
-				  conf.button.geometry.height,
+				  conf->button.geometry.width,
+				  conf->button.geometry.height,
 				  0, 0);
 }
 
-WInfo* win_add(w, state)
-	Window w;
-	kbdState* state;
+WInfo*
+win_add(Window w, kbdState *state)
 {
 	WInfo *pt;
 	pt = (WInfo*) malloc(sizeof(WInfo));
@@ -85,8 +76,8 @@ WInfo* win_add(w, state)
 	return pt;
 }
 
-void   win_free(w)
-	Window w;
+void
+win_free(Window w)
 {
 	WInfo *pt = winlist, *prev = NULL;
 
@@ -109,7 +100,8 @@ void   win_free(w)
 	return;
 }
 
-void   win_free_list()
+void
+win_free_list()
 {
 	WInfo *pt = winlist, *tmp;
 

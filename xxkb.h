@@ -30,6 +30,11 @@
 #define SYSTEM_TRAY_BEGIN_MESSAGE   1
 #define SYSTEM_TRAY_CANCEL_MESSAGE  2
 
+#define GrpMask    (0x3)
+#define AltGrp     (1<<2)
+#define InitAltGrp (1<<3)
+#define Ignore     (1<<4)
+
 typedef struct {
 	int	mask;
 	int	x,y;
@@ -40,11 +45,6 @@ typedef struct {
 typedef enum { T_string, T_bool, T_int, T_ulong } ResType;
 typedef enum { WMClassClass = 0, WMClassName, WMName, Prop } MatchType;
 typedef int  ListAction;
-
-#define GrpMask    (0x3)
-#define AltGrp     (1<<2)
-#define InitAltGrp (1<<3)
-#define Ignore     (1<<4)
 
 typedef struct __SearchList {
 	ListAction	action;
@@ -70,19 +70,11 @@ typedef struct {
 } XXkbConfig;
 
 
-void getGC(Window w, GC *gc);
-void update_window(Window w, GC gc, int group);
-void update_button(Window w, GC gc, int group);
-void Reset(void);
-void Terminate(void);
+/* Implemented in xxkb.c */
+extern void ErrHandler(Display *dpy, XErrorEvent *err);
 
-Bool ExpectInput(Window win);
-void ErrHandler(Display *dpy, XErrorEvent *err);
+/* Implemented in resource.c */
+extern int GetConfig(Display *dpy, XXkbConfig *conf);
+extern void AddAppToIgnoreList(XXkbConfig *conf, char* app_ident, MatchType type);
 
-WInfo* AddWindow(Window w, Window parent);
-Window MakeButton(Window parent);
-Window GetGrandParent(Window w);
-void   GetAppWindow(Window w, Window *app);
-
-int  GetConfig(Display *dpy, XXkbConfig *conf);
-void AddAppToIgnoreList(XXkbConfig *conf, char* app_ident, MatchType type);
+extern Display *dpy;
