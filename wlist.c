@@ -85,8 +85,10 @@ win_add(Window w, kbdState *state)
 		pt->button = 0;
 		memcpy((void*) &pt->state, (void*) state, sizeof(kbdState));
 		pt->next = 0;
-		if (last != NULL) last->next = pt;
-		if (winlist == NULL) winlist = pt;
+		if (last != NULL)
+			last->next = pt;
+		if (winlist == NULL)
+			winlist = pt;
 		last = pt;
 	}
 	return pt;
@@ -108,23 +110,27 @@ win_free(Window w)
 		return;
 	}
   
-	if (prev == NULL) winlist = pt->next;
-	else prev->next = pt->next;
+	if (prev == NULL)
+		winlist = pt->next;
+	else
+		prev->next = pt->next;
 
-	if (last == pt) last = prev;
+	if (last == pt)
+		last = prev;
 
 	free(pt);
 	return;
 }
 
 void
-win_free_list()
+win_free_list(void)
 {
 	WInfo *pt = winlist, *tmp;
 
 	while (pt != NULL) {
 		tmp = pt->next;
-		if (pt->button) XDestroyWindow(dpy, pt->button);
+		if (pt->button)
+			XDestroyWindow(dpy, pt->button);
 		free(pt);
 		pt = tmp;  
 	}

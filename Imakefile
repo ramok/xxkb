@@ -7,7 +7,7 @@ LOCAL_LIBRARIES = $(XONLYLIB) -lXpm -lXt
 
 SRCS = xxkb.c resource.c wlist.c
 OBJS = xxkb.o resource.o wlist.o
-PIXMAPS = pixmaps\/*.xpm
+PIXMAPS = pixmaps/\*.xpm
 
 DEFINES = -DAPPDEFDIR=\"$(DESTDIR)$(XAPPLOADDIR)\"
 CDEBUGFLAGS = -O2 -Wall

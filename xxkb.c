@@ -73,14 +73,14 @@ main(int argc, char ** argv)
 	XSizeHints	*size_hints;
 	XClassHint	*class_hints;
 	XSetWindowAttributes win_attr;
-	char buf[64];
+	char buf[64], *display_name = NULL;
 
 	/* Lets begin */
 	mjr = XkbMajorVersion;
 	mnr = XkbMinorVersion;
-	dpy = XkbOpenDisplay("", &xkbEventType, &xkbError, &mjr, &mnr, &reason_rtrn); 
+	dpy = XkbOpenDisplay(display_name, &xkbEventType, &xkbError, &mjr, &mnr, &reason_rtrn); 
 	if (!dpy) {
-		warnx("Can't connect to X-server: %s", getenv("DISPLAY"));
+		warnx("Can't open display named %s", XDisplayName(display_name));
 		switch (reason_rtrn) {
 		case XkbOD_BadLibraryVersion :
 		case XkbOD_BadServerVersion :
