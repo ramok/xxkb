@@ -4,23 +4,24 @@
 
 #define	When_create         (1<<0)
 #define	When_change         (1<<1)
-#define	Focus_out           (1<<2)
-#define	Two_state           (1<<3)
-#define	Button_enable       (1<<4)
-#define	Main_enable         (1<<5)
-#define	WMaker              (1<<6)
-#define	Button_delete       (1<<7)
-#define	When_start          (1<<8)
-#define	Bell_enable         (1<<9)
-#define	Ignore_reverse      (1<<10)
-#define	Main_delete         (1<<11)
+#define	When_start          (1<<2)
+#define	Focus_out           (1<<3)
+#define	Two_state           (1<<4)
+#define	Button_enable       (1<<5)
+#define	Main_enable         (1<<6)
+#define	WMaker              (1<<7)
+#define	Button_delete       (1<<8)
+#define	Main_delete         (1<<9)
+#define	Bell_enable         (1<<10)
+#define	Ignore_reverse      (1<<11)
 
 #define	But1_reverse        (1<<12)
 #define	But3_reverse        (1<<13)
 
 #define	Forget_window       (1<<14)
 #define	Label_enable        (1<<15)
-#define	Tray_enable         (1<<16)
+#define	Main_tray           (1<<16)
+#define	Main_ontop          (1<<17)
 
 #define	SYSTEM_TRAY_REQUEST_DOCK    0
 #define	SYSTEM_TRAY_BEGIN_MESSAGE   1
@@ -45,7 +46,7 @@ typedef int  ListAction;
 typedef struct __SearchList {
 	ListAction	action;
 	MatchType	type;
-	int			num;
+	int		num;
 	char		**idx;
 	char		*list;
 	struct __SearchList *next;
@@ -55,6 +56,9 @@ typedef	struct {
 	Geometry geometry;
 	Pixmap   pictures[MAX_GROUP];
 	Pixmap   shapemask[MAX_GROUP];
+#ifdef SHAPE_EXT
+	Pixmap   boundmask[MAX_GROUP];
+#endif
 	unsigned int  border_width, border_color;
 } XXkbElement;
 
@@ -76,3 +80,7 @@ extern int GetConfig(Display *dpy, XXkbConfig *conf);
 extern void AddAppToIgnoreList(XXkbConfig *conf, char* app_ident, MatchType type);
 
 extern Display *dpy;
+
+#ifdef SHAPE_EXT
+extern Bool shape_ext;
+#endif

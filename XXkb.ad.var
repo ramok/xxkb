@@ -1,15 +1,14 @@
-XXkb.xpm.path: PIXMAPDIR
+XXkb.image.path: PIXMAPDIR
 
 XXkb.group.base: 1
 XXkb.group.alt: 2
 
 XXkb.mainwindow.enable: yes
-XXkb.mainwindow.appicon: no
 XXkb.mainwindow.geometry: 48x48
-XXkb.mainwindow.xpm.1: en48.xpm
-XXkb.mainwindow.xpm.2: ru48.xpm
-XXkb.mainwindow.xpm.3: su48.xpm
-XXkb.mainwindow.xpm.4:
+XXkb.mainwindow.image.1: en48.xpm
+XXkb.mainwindow.image.2: ru48.xpm
+XXkb.mainwindow.image.3: su48.xpm
+XXkb.mainwindow.image.4:
 XXkb.mainwindow.label.font: -misc-*-r-*-20-*
 
 XXkb.*.border.color: black
@@ -19,15 +18,15 @@ XXkb.*.label.foreground: white
 XXkb.*.label.background: blue4
 XXkb.*.label.enable: no
 
-! XXkb.mainwindow.in_tray:
-! possible values - KDE, KDE2, GNOME
+! XXkb.mainwindow.type:
+! possible values - normal, top, tray, wmaker
 
 XXkb.button.enable: yes
 XXkb.button.geometry: 15x15-60+7
-XXkb.button.xpm.1: en15.xpm
-XXkb.button.xpm.2: ru15.xpm
-XXkb.button.xpm.3: su15.xpm
-XXkb.button.xpm.4:
+XXkb.button.image.1: en15.xpm
+XXkb.button.image.2: ru15.xpm
+XXkb.button.image.3: su15.xpm
+XXkb.button.image.4:
 XXkb.button.label.font: -misc-*-r-*-13-*
 
 XXkb.controls.add_when_start: yes
