@@ -86,6 +86,12 @@ the geometry ( WIDTHxHEIGHT{+-}XOFF{+-}YOFF ) of the main
 window. Please read the \fBGEOMETRY SPECIFICATIONS\fR section of X(7)
 for details.
 .TP 4
+.B XXkb.mainwindow.border.color
+color to be used when drawing window border.
+.TP 4
+.B XXkb.mainwindow.border.width
+border width in pixels.
+.TP 4
 .B XXkb.mainwindow.xpm.N
 pixmap file names for each indicated group N. If your symbols map has less
 than four groups the unused group icons can be ommited. If the file name
@@ -190,6 +196,10 @@ the pixmap file names (the same as for the \fBXXkb.mainwindow.xpm.*\fR options).
 .B XXkb.button.label.foreground
 .TP 4
 .B XXkb.button.label.font
+.TP 4
+.B XXkb.button.border.color
+.TP 4
+.B XXkb.button.border.width
 see description of their mainwindow counterparts.
 .SH  Bell options
 .TP 4

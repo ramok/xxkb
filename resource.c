@@ -233,6 +233,12 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 		warnx("Incomplete geometry for %s", window_name);
 	}
 
+	sprintf(res_name, "%s.border.width", window_name);
+	GetRes(db, res_name, T_int, True, &element->border_width);
+
+	sprintf(res_name, "%s.border.color", window_name);
+	GetColorRes(dpy, db, res_name, &element->border_color);
+
 	str_gravity = NULL;
 	sprintf(res_name, "%s.gravity", window_name);
 	GetRes(db, res_name, T_string, False, &str_gravity);

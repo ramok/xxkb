@@ -12,6 +12,9 @@ XXkb.mainwindow.xpm.3: su48.xpm
 XXkb.mainwindow.xpm.4:
 XXkb.mainwindow.label.font: -misc-*-r-*-20-*
 
+XXkb.*.border.color: black
+XXkb.*.border.width: 0
+
 XXkb.*.label.foreground: white
 XXkb.*.label.background: blue4
 XXkb.*.label.enable: no

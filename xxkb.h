@@ -58,6 +58,7 @@ typedef struct __SearchList {
 typedef	struct {
 	Geometry geometry;
 	Pixmap   pictures[MAX_GROUP];
+	unsigned int  border_width, border_color;
 } XXkbElement;
 
 typedef struct {

@@ -143,12 +143,13 @@ main(int argc, char ** argv)
 	
 	memset(&win_attr, 0, sizeof(win_attr));
 	win_attr.background_pixmap = ParentRelative;
-	
+	win_attr.background_pixel = conf.mainwindow.border_color;
+
 	MainWin = XCreateWindow(dpy, RootWin,
 					geom.x, geom.y,
-					geom.width, geom.height, 0,
+					geom.width, geom.height, conf.mainwindow.border_width,
 					CopyFromParent, InputOutput,
-					CopyFromParent, CWBackPixmap,
+					CopyFromParent, CWBackPixmap | CWBorderPixel,
 					&win_attr);
 
 	XStoreName(dpy, MainWin, APPNAME);
@@ -646,16 +647,16 @@ MakeButton(Window parent)
 	y = (geom.mask & YNegative)? height + geom.y - geom.height : geom.y;
 
 	if ((geom.width > width) || (geom.height > height))
-		return 0 ;
+		return (Window) 0;
 
-	button = XCreateSimpleWindow(dpy, parent,
-								 x, y, geom.width, geom.height, 0,
-								 BlackPixel(dpy, scr), WhitePixel(dpy, scr));
+	button = XCreateSimpleWindow(dpy, parent, x, y, geom.width, geom.height,
+							conf.button.border_width, conf.button.border_color,
+							WhitePixel(dpy, scr));
 
 	attr.override_redirect = True;
 	attr.win_gravity = geom.gravity;
 
-	XChangeWindowAttributes(dpy, button, CWWinGravity|CWOverrideRedirect, &attr);
+	XChangeWindowAttributes(dpy, button, CWWinGravity | CWOverrideRedirect, &attr);
 	XSelectInput(dpy, parent, SubstructureNotifyMask);
 	XSelectInput(dpy, button, ExposureMask | ButtonPressMask);
 	XMapRaised(dpy, button);
