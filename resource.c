@@ -1,4 +1,4 @@
-/* -*- tab-width: 4; -*- */
+/* -*- tab-width: 4; c-basic-offset: 4; -*- */
 
 #include <X11/Xlib.h>
 #include <X11/Xresource.h>

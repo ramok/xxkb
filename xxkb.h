@@ -1,4 +1,4 @@
-/* -*- tab-width: 4; -*- */
+/* -*- tab-width: 4; c-basic-offset: 4; -*- */
 
 #define XT_RESOURCE_SEARCH
 
