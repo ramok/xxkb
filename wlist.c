@@ -51,23 +51,23 @@ void
 win_update(Window win, XXkbElement *elem, GC gc, int group, int win_x, int win_y)
 {
 	if (win && elem->pictures[group]) {
+		XClearWindow(dpy, win);
 #ifdef SHAPE_EXT
 		if (shape_ext) {
 			/* Set clip region */
 			XShapeCombineMask(dpy, win,
 				ShapeClip,
-				0, 0,
+				win_x, win_y,
 				elem->shapemask[group], ShapeSet);
 			/* Set boundary region */
 			XShapeCombineMask(dpy, win, 
 				ShapeBounding,
-				win_x-elem->border_width, win_y-elem->border_width,
+				win_x - elem->border_width, win_y - elem->border_width,
 				elem->boundmask[group], ShapeSet);
 		}
 		/* Try to emulate shape extension */
 		else {
 #endif
-			XClearWindow(dpy, win);
 			XSetClipOrigin(dpy, gc, 0, 0);
 			XSetClipMask(dpy, gc, elem->shapemask[group]);
 #ifdef SHAPE_EXT

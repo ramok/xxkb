@@ -617,7 +617,7 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 	 * merge settings
 	 */
 	stat = XrmCombineFileDatabase(filename, &db, True);
-	if (stat == 0) {
+	if (stat == 0 && db == NULL) {
 		/* failed */
 		warnx("Unable to find configuration data");
 		return 5;
