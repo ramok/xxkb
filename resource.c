@@ -191,7 +191,9 @@ SetRes(XrmDatabase db, char *name, ResType type, void *val)
 	case T_string:
 		XrmPutStringResource(&db, full_res_name, (char*) val);
 		break;
+
 	default:
+		warnx("Setting a resource of an unsupported type");
 		break;
 	}
 
