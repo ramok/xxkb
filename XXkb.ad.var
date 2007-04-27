@@ -5,6 +5,8 @@ XXkb.group.alt: 2
 
 XXkb.mainwindow.enable: yes
 XXkb.mainwindow.geometry: 48x48
+! Possible values: normal, top, tray, wmaker
+XXkb.mainwindow.type: normal
 XXkb.mainwindow.image.1: en48.xpm
 XXkb.mainwindow.image.2: ru48.xpm
 XXkb.mainwindow.image.3: su48.xpm
@@ -17,9 +19,6 @@ XXkb.*.border.width: 0
 XXkb.*.label.foreground: white
 XXkb.*.label.background: blue4
 XXkb.*.label.enable: no
-
-! XXkb.mainwindow.type:
-! possible values - normal, top, tray, wmaker
 
 XXkb.button.enable: yes
 XXkb.button.geometry: 15x15-60+7
