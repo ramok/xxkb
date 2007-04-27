@@ -3,7 +3,7 @@
 BASEDIR = $(PROJECTROOT)
 BINDIR = $(BASEDIR)/bin
 PIXMAPDIR = $(BASEDIR)/share/xxkb
-LOCAL_LIBRARIES = $(XONLYLIB) -lXpm -lXt
+LOCAL_LIBRARIES = $(XONLYLIB) -lXpm -lXt -lXext
 
 OBJS = xxkb.o resource.o wlist.o
 PIXMAPS = pixmaps/by15.xpm pixmaps/by48.xpm \
