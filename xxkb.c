@@ -308,7 +308,7 @@ main(int argc, char ** argv)
 
 	if (conf.controls & When_start) {
 		Window rwin, parent, *children, *child, app;
-		int num;
+		unsigned int num;
 
 		XQueryTree(dpy, root_win, &rwin, &parent, &children, &num);
 		child = children;
@@ -443,8 +443,9 @@ main(int argc, char ** argv)
 				switch (btn_evt->button) {
 				case Button1:
 					if (btn_evt->state & ControlMask) {
-						int root_x, root_y, mask;
+						int root_x, root_y;
 						Window root, child;
+						unsigned int mask;
 						
 						move_window = 1;
 						XQueryPointer(dpy, temp_win, &root, &child, &root_x, &root_y, &add_x, &add_y, &mask);
@@ -665,7 +666,7 @@ main(int argc, char ** argv)
 				temp_info = win_find(temp_win);
 				if (temp_info == NULL) {
 					Window rwin, parent, *children;
-					int num;
+					unsigned int num;
 
 					XQueryTree(dpy, temp_win, &rwin, &parent, &children, &num);
 					AddWindow(temp_win, parent);
@@ -948,7 +949,7 @@ static Window
 GetGrandParent(Window w)
 {
 	Window rwin, parent, *children;
-	int num;
+	unsigned int num;
 
 	while (1) {
 		if (!XQueryTree(dpy, w, &rwin, &parent, &children, &num)) {
@@ -969,7 +970,7 @@ static void
 GetAppWindow(Window win, Window *core)
 {
 	Window rwin, parent, *children, *child;
-	int num;
+	unsigned int num;
 
 	if (!XQueryTree(dpy, win, &rwin, &parent, &children, &num)) {
 		return;
