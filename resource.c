@@ -125,17 +125,16 @@ struct {
  *     may be not required.
  *
  * Returns
- *     nothing.
+ *     0 if a resource could be read and non-null otherwise.
  *     Exits the process if the required resource was not found.
  */
 
-static void
+static int
 GetRes(XrmDatabase db, char *name, ResType type, Bool required, void *value)
 {
 	XrmValue val;
 	Bool ok = False;
 	char *type_ret, *full_res_name;
-	size_t len;
 
 	full_res_name = PrependProgramName(name);
 	ok = XrmGetResource(db, full_res_name, "", &type_ret, &val);
@@ -149,15 +148,14 @@ GetRes(XrmDatabase db, char *name, ResType type, Bool required, void *value)
 		}
 		else {
 			free(full_res_name);
-			return;
+			return 1;
 		}
 	}
 	free(full_res_name);
 
 	switch (type) {
 	case T_string:
-		len = strlen(val.addr);
-		*((char**) value) = malloc(len + 1);
+		*((char**) value) = malloc(strlen(val.addr) + 1);
 		if (*((char**) value) == NULL) {
 			err(1, "Failed to allocate memory for the string");
 		}
@@ -179,6 +177,8 @@ GetRes(XrmDatabase db, char *name, ResType type, Bool required, void *value)
 		*((unsigned long*) value) = strtoul(val.addr, (char**) NULL, 16);
 		break;
 	}
+
+	return 0;
 }
 
 static void
@@ -338,11 +338,17 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 		char res_name[64], *filename, *fullname, *imgpath;
 		size_t len;
 
-		GetRes(db, "image.path", T_string, True, &imgpath);
+		/* backward compatibility */
+		if (GetRes(db, "xpm.path", T_string, False, &imgpath) != 0)
+			GetRes(db, "image.path", T_string, True, &imgpath);
 
 		for (i = 0; i < MAX_GROUP; i++) {
-			sprintf(res_name, "%s.image.%d", window_name, i + 1);
-			GetRes(db, res_name, T_string, True, &filename);
+			/* backward compatibility */
+			sprintf(res_name, "%s.xpm.%d", window_name, i + 1);
+			if (GetRes(db, res_name, T_string, False, &filename) != 0) {
+				sprintf(res_name, "%s.image.%d", window_name, i + 1);
+				GetRes(db, res_name, T_string, True, &filename);
+			}
 			if (filename != NULL && *filename != '\0') {
 				if (*filename == '/') {
 					LoadImage(dpy, element, &pixmap[i], &shape[i], filename);
@@ -646,23 +652,30 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 
 	GetControlRes(db, "mainwindow.enable", &conf->controls, Main_enable);
 	if (conf->controls & Main_enable) {
+		Bool app_icon;
 		char *type;
-		
-		GetRes(db, "mainwindow.type", T_string, True, &type);
-		if (strncasecmp(type, "wmaker", 6) == 0) {
+
+		/* backward compatibility */
+		if (GetRes(db, "mainwindow.appicon", T_bool, False,
+				   &app_icon) == 0 && app_icon == True)
 			conf->controls |= WMaker;
-		}
-		else if (strncasecmp(type, "tray", 4) == 0) {
-			conf->controls |= Main_tray;
-		}
-		else if (strncasecmp(type, "top", 3) == 0) {
-			conf->controls |= Main_ontop;
-		}
-		else if (strncasecmp(type, "normal", 6) == 0) {
-			conf->controls &= ~(Main_tray | Main_ontop | WMaker);
-		}
 		else {
-		    errx(2, "Unknown window type '%s'", type);
+			GetRes(db, "mainwindow.type", T_string, True, &type);
+			if (strncasecmp(type, "wmaker", 6) == 0) {
+				conf->controls |= WMaker;
+			}
+			else if (strncasecmp(type, "tray", 4) == 0) {
+				conf->controls |= Main_tray;
+			}
+			else if (strncasecmp(type, "top", 3) == 0) {
+				conf->controls |= Main_ontop;
+			}
+			else if (strncasecmp(type, "normal", 6) == 0) {
+				conf->controls &= ~(Main_tray | Main_ontop | WMaker);
+			}
+			else {
+				errx(2, "Unknown window type '%s'", type);
+			}
 		}
 
 		if (!(conf->controls & Main_tray)) {

@@ -607,7 +607,24 @@ main(int argc, char ** argv)
                                     repar_evt->parent != root_win &&
 				    BASE(repar_evt->parent) != BASE(temp_win) &&
 				    repar_evt->override_redirect != True) {
-					AddWindow(temp_win, repar_evt->parent);
+					Window rwin, parent, *children, *child, app;
+					unsigned int num;
+
+					XQueryTree(dpy, root_win, &rwin, &parent, &children, &num);
+					child = children;
+					while (num > 0) {
+						app = None;
+						GetAppWindow(*child, &app);
+						if (app == temp_win) {
+							AddWindow(app, repar_evt->parent);
+							break;
+						}
+						child++;
+						num--;
+					}
+
+					if (children != None)
+						XFree(children);
 				}
 				break;
 
