@@ -564,9 +564,7 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 	char *homedir, *filename;
 	char *str_list, *res_app_list, res_ctrls[256];
 	int i, j;
-#ifndef XT_RESOURCE_SEARCH
 	size_t len;
-#endif
 
 	/*
 	 * Init pixbuf engine
@@ -593,7 +591,10 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 	}
 	sprintf(filename, "%s/%s", APPDEFDIR, APPDEFFILE);
 #endif
-	db = XrmGetFileDatabase(filename);
+	if (filename)
+		db = XrmGetFileDatabase(filename);
+	else
+		db = NULL;
 	if (db == NULL) {
 		/*
 		 * this situation is not fatal if the user has all
@@ -624,11 +625,29 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 	/*
 	 * merge settings
 	 */
-	stat = XrmCombineFileDatabase(filename, &db, True);
+	if (filename)
+		stat = XrmCombineFileDatabase(filename, &db, True);
+	else
+		stat = 0;
 	if (stat == 0 && db == NULL) {
 		/* failed */
 		warnx("Unable to find configuration data");
 		return 5;
+	}
+
+	if (!filename) {
+		/*
+		 * In case the user did not have a config file we have to come
+		 * up with one
+		 */
+		len = strlen(homedir) + 1 + strlen(USERDEFFILE);
+		filename = malloc(len + 1);
+		if (filename == NULL) {
+			warn(NULL);
+			XrmDestroyDatabase(db);
+			return 1;
+		}
+		sprintf(filename, "%s/%s", homedir, USERDEFFILE);
 	}
 	/*
 	 * start with the conf object
