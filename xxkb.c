@@ -1268,6 +1268,7 @@ ErrHandler(Display *dpy, XErrorEvent *err)
 	switch (err->error_code) {
 	case BadWindow:
 	case BadDrawable:
+	case BadMatch:
 		/* Ignore these errors */
 		break;
 
