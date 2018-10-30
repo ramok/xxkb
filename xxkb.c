@@ -376,12 +376,12 @@ main(int argc, char ** argv)
 						g_min = info->state.alt;
 					}
 
-					if ((grp > g_min) && (grp < g_max)) {
+					if (ev.state.mods & conf.keymask_cycle) {
+						XkbLockGroup(dpy, XkbUseCoreKbd, grp);
+					} else if ((grp > g_min) && (grp < g_max)) {
 						XkbLockGroup(dpy, XkbUseCoreKbd, g_max);
 						break;
-					}
-
-					if ((grp < g_min) || (grp > g_max)) {
+					} else if ((grp < g_min) || (grp > g_max)) {
 						XkbLockGroup(dpy, XkbUseCoreKbd, g_min);
 						break;
 					}

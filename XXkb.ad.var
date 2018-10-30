@@ -3,6 +3,8 @@ XXkb.image.path: PIXMAPDIR
 XXkb.group.base: 1
 XXkb.group.alt: 2
 
+XXkb.keymask.cycle: ctrl
+
 XXkb.mainwindow.enable: yes
 XXkb.mainwindow.geometry: 48x48
 ! Possible values: normal, top, tray, wmaker

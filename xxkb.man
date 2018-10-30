@@ -215,6 +215,11 @@ enables the keyboard bell when the layout changes.
 .TP 4
 .B XXkb.bell.percent
 an argument value for the XBell call.
+.SH  Key Mask options
+.TP 4
+.B XXkb.keymask.cycle
+set the keyboard key modifer for cycle layout changes. Usefull when there is more
+then two layouts. Can be "shift", "lock", "control", "ctrl", "alt", "mod1", "mod2", "mod3", "mod4", "mod5".
 .SH  Applications lists options
 The \fBxxkb\fR allows to specify lists of applications that require a
 special handling.  Applications can be specified using their

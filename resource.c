@@ -118,6 +118,23 @@ struct {
 	{ "mainwindow_delete",		Main_delete }
 };
 
+static
+struct {
+	char  *name;
+	int   flag;
+} KeyMasks[] = {
+	{ "shift",      ShiftMask   },
+	{ "lock",       LockMask    },
+	{ "control",    ControlMask },
+	{ "ctrl",       ControlMask	},
+	{ "alt",        Mod1Mask	},
+	{ "mod1",       Mod1Mask	},
+	{ "mod2",       Mod2Mask	},
+	{ "mod3",       Mod3Mask	},
+	{ "mod4",       Mod4Mask	},
+	{ "mod5",       Mod5Mask	},
+};
+
 
 /*
  * GetRes
@@ -389,6 +406,26 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 
 		free(imgpath);
 	}
+}
+
+static void
+GetKeyMasksRes(XrmDatabase db, char *name, unsigned long *keymask)
+{
+	int i;
+	char *keymask_name;
+
+	GetRes(db, name, T_string, True, &keymask_name);
+	if (keymask_name == NULL)
+	    return;
+
+	*keymask = 0;
+	for (i = 0; i < countof(KeyMasks); i++) {
+	    if (!strncmp(keymask_name, KeyMasks[i].name, strlen(KeyMasks[i].name))) {
+				*keymask |= KeyMasks[i].flag;
+				break;
+	    }
+	}
+	free(keymask_name);
 }
 
 static void
@@ -757,6 +794,7 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 
 	GetControlRes(db, "mousebutton.1.reverse", &conf->controls, But1_reverse);
 	GetControlRes(db, "mousebutton.3.reverse", &conf->controls, But3_reverse);
+	GetKeyMasksRes(db, "keymask.cycle", &conf->keymask_cycle);
 
 	XrmDestroyDatabase(db);
 
