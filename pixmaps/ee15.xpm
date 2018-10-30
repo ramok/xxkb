@@ -1,0 +1,25 @@
+/* XPM */
+static char *ee15[] = {
+/* width height num_colors chars_per_pixel */
+"    15    15        3            1",
+/* colors */
+". c blue",
+"# c black",
+"a c white",
+/* pixels */
+"...............",
+"...............",
+"...............",
+"...............",
+"...............",
+"###############",
+"###############",
+"###############",
+"###############",
+"###############",
+"aaaaaaaaaaaaaaa",
+"aaaaaaaaaaaaaaa",
+"aaaaaaaaaaaaaaa",
+"aaaaaaaaaaaaaaa",
+"aaaaaaaaaaaaaaa"
+};
