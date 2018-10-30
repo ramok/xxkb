@@ -47,6 +47,7 @@ static void LoadImage(Display *dpy, XXkbElement *elem, Pixmap *pixmap, Pixmap *m
 #ifdef SHAPE_EXT
 static void CreateShade(Display *dpy, XXkbElement *elem, Pixmap *shape, Pixmap *shade);
 #endif
+static char *processTextName[] = {"run.text.1", "run.text.2", "run.text.3", "run.text.4"};
 
 #define	countof(a)	(sizeof(a) / sizeof(a[0]))
 
@@ -796,6 +797,17 @@ GetConfig(Display *dpy, XXkbConfig *conf)
 	GetControlRes(db, "mousebutton.3.reverse", &conf->controls, But3_reverse);
 	GetKeyMasksRes(db, "keymask.cycle", &conf->keymask_cycle);
 
+    GetRes(db, "run.process", T_string, False, &conf->run_process);
+    conf->run_enabled = 0;
+    for (i = 0; i < 4; i++) {
+        GetRes(db, processTextName[i], T_string, False, &conf->run_text[i]);
+        if (conf->run_text[i] && strlen(conf->run_text[i]) > 0) {
+            conf->run_enabled = 1;
+        }
+    }
+    if (conf->run_process && strlen(conf->run_process) == 0) {
+        conf->run_enabled = 0;
+    }
 	XrmDestroyDatabase(db);
 
 	return 0;

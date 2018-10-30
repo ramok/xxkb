@@ -68,6 +68,9 @@ typedef struct {
 	char*        user_config; /* filename */
 	XXkbElement  mainwindow, button;
 	SearchList*  app_lists[sizeof(MatchType)];
+    char*        run_process;
+    char*        run_text[4];
+    int          run_enabled;
 	unsigned long keymask_cycle;
 } XXkbConfig;
 

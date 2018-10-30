@@ -8,6 +8,7 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 #include <err.h>
 
 #include <X11/Xlib.h>
@@ -86,6 +87,10 @@ main(int argc, char ** argv)
 	char *display_name, buf[64];
 	unsigned long valuemask, xembed_info[2] = { 0, 1 };
 	XGCValues values;
+    FILE *pFile;
+    char *output;
+    int  output_len;
+
 
 	/* Lets begin */
 	display_name = NULL;
@@ -403,6 +408,20 @@ main(int argc, char ** argv)
 				if (conf.controls & Bell_enable) {
 					XBell(dpy, conf.Bell_percent);
 				}
+
+                if (conf.run_enabled) {
+                    output_len = strlen(conf.run_text[grp]);
+                    if (output_len > 0) {
+                        pFile = popen(conf.run_process, "w");
+                        output = (char *) malloc(output_len + 1);
+                        strcpy(output, conf.run_text[grp]);
+                        output[output_len] = '\n';
+                        fputs(output, pFile);
+                        free(output);
+                        pclose(pFile);
+                    }
+                }
+
 				break;
 
 			default:

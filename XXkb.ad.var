@@ -56,3 +56,7 @@ XXkb.ignore.reverse: no
 !
 !  ignore windows in KDE tray
 !  XXkb.app_list.property.ignore: _KDE_NET_WM_SYSTEM_TRAY_WINDOW_FOR
+
+! XXkb.run.process: /usr/local/bin/awesome-client
+! XXkb.run.text.1: set_kb_layout_name('en')
+! XXkb.run.text.2: set_kb_layout_name('ru')
