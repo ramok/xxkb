@@ -285,7 +285,7 @@ GetElementRes(Display *dpy, XrmDatabase db, char *window_name, XXkbElement *elem
 
 		XWMGeometry(dpy, DefaultScreen(dpy), str_geom, NULL, 0, size_hts,
 					&tmp_geom.x, &tmp_geom.y,
-					&tmp_geom.width, &tmp_geom.height,
+					(int *)&tmp_geom.width, (int *)&tmp_geom.height,
 					&geom->gravity);
 		XFree(size_hts);
 	}
