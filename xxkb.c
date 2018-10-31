@@ -704,11 +704,12 @@ main(int argc, char ** argv)
 					Window rwin, parent, *children;
 					unsigned int num;
 
-					XQueryTree(dpy, temp_win, &rwin, &parent, &children, &num);
-					AddWindow(temp_win, parent);
+					if (!XQueryTree(dpy, temp_win, &rwin, &parent, &children, &num)) {
+						AddWindow(temp_win, parent);
 
-					if (children != None) {
-						XFree(children);
+						if (children != None) {
+							XFree(children);
+						}
 					}
 				}
 				break;
