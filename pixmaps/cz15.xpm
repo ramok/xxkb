@@ -1,0 +1,24 @@
+/* XPM */
+static char * en15_xpm[] = {
+/* width height ncolors chars_per_pixel */
+"15 15 3 1",
+/* colors */
+"o	c #FFFFFF",
+".	c #E40046",
+"X	c #003087",
+/* pixels */
+"ooooooooooooooo",
+"Xoooooooooooooo",
+"XXooooooooooooo",
+"XXXoooooooooooo",
+"XXXXooooooooooo",
+"XXXXXoooooooooo",
+"XXXXXXooooooooo",
+"XXXXXXX........",
+"XXXXXX.........",
+"XXXXX..........",
+"XXXX...........",
+"XXX............",
+"XX.............",
+"X..............",
+"..............."};
