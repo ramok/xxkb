@@ -124,6 +124,7 @@ struct {
 	char  *name;
 	int   flag;
 } KeyMasks[] = {
+	{ "none",       0           },
 	{ "shift",      ShiftMask   },
 	{ "lock",       LockMask    },
 	{ "control",    ControlMask },
