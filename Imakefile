@@ -15,7 +15,8 @@ PIXMAPS = pixmaps/by15.xpm pixmaps/by48.xpm \
 	  pixmaps/il15.xpm pixmaps/il48.xpm \
 	  pixmaps/bg15.xpm pixmaps/bg48.xpm \
 	  pixmaps/ee15.xpm pixmaps/ee48.xpm \
-	  pixmaps/pl15.xpm pixmaps/pl48.xpm
+	  pixmaps/pl15.xpm pixmaps/pl48.xpm \
+	  pixmaps/cz15.xpm pixmaps/cz48.xpm
 
 DEFINES = -DAPPDEFDIR=\"$(DESTDIR)$(XAPPLOADDIR)\" -DAPPDEFFILE=\"XXkb\" \
 	-DXT_RESOURCE_SEARCH -DSHAPE_EXT
