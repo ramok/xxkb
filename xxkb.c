@@ -87,9 +87,9 @@ main(int argc, char ** argv)
 	char *display_name, buf[64];
 	unsigned long valuemask, xembed_info[2] = { 0, 1 };
 	XGCValues values;
-    FILE *pFile;
-    char *output;
-    int  output_len;
+	FILE *pFile;
+	char *output;
+	int  output_len;
 
 
 	/* Lets begin */
@@ -394,7 +394,7 @@ main(int argc, char ** argv)
 
 				info->state.group = grp;
 				if ((conf.controls & Two_state) &&
-				    (grp != conf.Base_group) && (grp != info->state.alt)) {
+					(grp != conf.Base_group) && (grp != info->state.alt)) {
 					info->state.alt = grp;
 				}
 
@@ -409,18 +409,18 @@ main(int argc, char ** argv)
 					XBell(dpy, conf.Bell_percent);
 				}
 
-                if (conf.run_enabled) {
-                    output_len = strlen(conf.run_text[grp]);
-                    if (output_len > 0) {
-                        pFile = popen(conf.run_process, "w");
-                        output = (char *) malloc(output_len + 1);
-                        strcpy(output, conf.run_text[grp]);
-                        output[output_len] = '\n';
-                        fputs(output, pFile);
-                        free(output);
-                        pclose(pFile);
-                    }
-                }
+				if (conf.run_enabled) {
+					output_len = strlen(conf.run_text[grp]);
+					if (output_len > 0) {
+						pFile = popen(conf.run_process, "w");
+						output = (char *) malloc(output_len + 1);
+						strcpy(output, conf.run_text[grp]);
+						output[output_len] = '\n';
+						fputs(output, pFile);
+						free(output);
+						pclose(pFile);
+					}
+				}
 
 				break;
 
@@ -472,7 +472,7 @@ main(int argc, char ** argv)
 					}
 
 					if (temp_win == info->button || temp_win == main_win ||
-					    (icon != None && temp_win == icon)) {
+						(icon != None && temp_win == icon)) {
 						if (conf.controls & Two_state) {
 							if (info->state.group == conf.Base_group) {
 								XkbLockGroup(dpy, XkbUseCoreKbd, info->state.alt);
@@ -494,7 +494,7 @@ main(int argc, char ** argv)
 
 				case Button3:
 					if (temp_win == info->button || temp_win == main_win ||
-					    (icon != None && temp_win == icon)) {
+						(icon != None && temp_win == icon)) {
 						if (conf.controls & But3_reverse) {
 							XkbLockGroup(dpy, XkbUseCoreKbd, info->state.group - 1);
 						}
@@ -537,14 +537,14 @@ main(int argc, char ** argv)
 				
 				case Button4:
 					if (temp_win == info->button || temp_win == main_win ||
-					    (icon != None && temp_win == icon)) {
+						(icon != None && temp_win == icon)) {
 						XkbLockGroup(dpy, XkbUseCoreKbd, info->state.group - 1);
 					}
 					break;
 
 				case Button5:
 					if (temp_win == info->button || temp_win == main_win ||
-					    (icon != None && temp_win == icon)) {
+						(icon != None && temp_win == icon)) {
 						XkbLockGroup(dpy, XkbUseCoreKbd, info->state.group + 1);
 					}
 					break;
@@ -623,9 +623,9 @@ main(int argc, char ** argv)
 				repar_evt = &ev.core.xreparent;
 				temp_win = repar_evt->window;
 				if (temp_win != main_win && temp_win != icon &&
-                                    repar_evt->parent != root_win &&
-				    BASE(repar_evt->parent) != BASE(temp_win) &&
-				    repar_evt->override_redirect != True) {
+									repar_evt->parent != root_win &&
+					BASE(repar_evt->parent) != BASE(temp_win) &&
+					repar_evt->override_redirect != True) {
 					Window rwin, parent, *children, *child, app;
 					unsigned int num;
 
@@ -731,7 +731,7 @@ main(int argc, char ** argv)
 						win_update(main_win, &conf.mainwindow, gc, info->state.group, win_x, win_y);
 					} 
 					else if ((temp_win == main_win || temp_win == icon)
-					           && cmsg_evt->data.l[0] == wm_del_win_atom) {
+							   && cmsg_evt->data.l[0] == wm_del_win_atom) {
 						Terminate();
 					}
 				}
