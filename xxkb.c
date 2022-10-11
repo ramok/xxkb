@@ -67,7 +67,6 @@ static void DestroyPixmaps(XXkbElement *elem);
 static void GetAppWindow(Window w, Window *app);
 static WInfo* AddWindow(Window w, Window parent);
 static void AdjustWindowPos(Display *dpy, Window win, Window parent, Bool set_gravity);
-static Bool ExpectInput(Window win);
 
 int
 main(int argc, char ** argv)
@@ -174,7 +173,7 @@ main(int argc, char ** argv)
 		geom.width = geom.height = 1;
 		conf.mainwindow.border_width = 0;
 	}
-	
+
 	valuemask = 0;
 	memset(&win_attr, 0, sizeof(win_attr));
 	win_attr.background_pixmap = ParentRelative;
@@ -465,7 +464,7 @@ main(int argc, char ** argv)
 						int root_x, root_y;
 						Window root, child;
 						unsigned int mask;
-						
+
 						move_window = 1;
 						XQueryPointer(dpy, temp_win, &root, &child, &root_x, &root_y, &add_x, &add_y, &mask);
 						break;
@@ -534,7 +533,7 @@ main(int argc, char ** argv)
 						Terminate();
 					}
 					break;
-				
+
 				case Button4:
 					if (temp_win == info->button || temp_win == main_win ||
 						(icon != None && temp_win == icon)) {
@@ -550,7 +549,7 @@ main(int argc, char ** argv)
 					break;
 				}
 				break;
-			
+
 			case MotionNotify:
 				if (move_window != 0) {
 					int x, y;
@@ -558,12 +557,12 @@ main(int argc, char ** argv)
 
 					mov_evt = &ev.core.xmotion;
 					temp_win = mov_evt->window;
-					
+
 					/* Don't move window in systray */
 					if (temp_win == main_win && (conf.controls & Main_tray)) {
 						break;
 					}
-					
+
 					temp_info = button_find(temp_win);
 					if (temp_info != NULL) {
 						XTranslateCoordinates(dpy, mov_evt->root, temp_info->parent,
@@ -577,12 +576,12 @@ main(int argc, char ** argv)
 					XMoveWindow(dpy, temp_win, x - add_x, y - add_y);
 				}
 				break;
-			
+
 			case ButtonRelease:
 				if (move_window != 0) {
 					btn_evt = &ev.core.xbutton;
 					temp_win = btn_evt->window;
-					
+
 					temp_info = button_find(temp_win);
 					if (temp_info != NULL) {
 						AdjustWindowPos(dpy, temp_win, temp_info->parent, True);
@@ -698,7 +697,7 @@ main(int argc, char ** argv)
 				if (temp_win == main_win || temp_win == icon) {
 					break;
 				}
-				
+
 				temp_info = win_find(temp_win);
 				if (temp_info == NULL) {
 					Window rwin, parent, *children;
@@ -723,13 +722,13 @@ main(int argc, char ** argv)
 						&& systray == None) {
 						systray = cmsg_evt->data.l[2];
 						DockWindow(dpy, systray, main_win);
-					} 
+					}
 					else if (cmsg_evt->message_type == xembed_atom &&
 							   temp_win == main_win && cmsg_evt->data.l[1] == 0) {
 						/* XEMBED_EMBEDDED_NOTIFY */
 						MoveOrigin(dpy, main_win, &win_x, &win_y);
 						win_update(main_win, &conf.mainwindow, gc, info->state.group, win_x, win_y);
-					} 
+					}
 					else if ((temp_win == main_win || temp_win == icon)
 							   && cmsg_evt->data.l[0] == wm_del_win_atom) {
 						Terminate();
@@ -770,12 +769,12 @@ AdjustWindowPos(Display *dpy, Window win, Window parent, Bool set_gravity)
 	/* Normalize coordinates */
 	x1 = (x < 0) ? 0 : ((x+w+2*bd) > w1) ? w1-w-2*bd : x;
 	y1 = (y < 0) ? 0 : ((y+h+2*bd) > h1) ? h1-h-2*bd : y;
-	
+
 	/* Adjust window position, if necessary */
 	if (x != x1 || y != y1) {
 		XMoveWindow(dpy, win, x1, y1);
 	}
-	
+
 	if (set_gravity == False) {
 		return;
 	}
@@ -831,10 +830,10 @@ Terminate()
 {
 	win_free_list();
 	XFreeGC(dpy, gc);
-	
+
 	DestroyPixmaps(&conf.mainwindow);
 	DestroyPixmaps(&conf.button);
-	
+
 	if (icon != None) {
 		XDestroyWindow(dpy, icon);
 	}
@@ -881,11 +880,6 @@ AddWindow(Window win, Window parent)
 	/* properties can be unsuitable at this moment so we need to have
 	   a posibility to reconsider when they will be changed */
 	XSelectInput(dpy, win, PropertyChangeMask);
-
-	/* don't deal with windows that never get a focus */
-	if (!ExpectInput(win)) {
-		return NULL;
-	}
 
 	action = GetWindowAction(win);
 	if (((action & Ignore) && !(conf.controls & Ignore_reverse)) ||
@@ -969,7 +963,7 @@ MakeButton(WInfo *info, Window parent)
 	XSelectInput(dpy, parent, SubstructureNotifyMask);
 	XSelectInput(dpy, button, ExposureMask | ButtonPressMask | ButtonMotionMask | ButtonReleaseMask);
 	XMapRaised(dpy, button);
-	
+
 	info->parent = parent;
 	info->button = button;
 }
@@ -1160,42 +1154,6 @@ GetWindowAction(Window w)
 
 	return ret;
 }
-
-static Bool
-ExpectInput(Window w)
-{
-	Bool ok = False;
-	XWMHints *hints;
-
-	hints = XGetWMHints(dpy, w);
-	if (hints != NULL) {
-		if ((hints->flags & InputHint) && hints->input) {
-			ok = True;
-		}
-		XFree(hints);
-	}
-
-	if (!ok) {
-		Atom *protocols;
-		Status stat;
-		int n, i;
-
-		stat = XGetWMProtocols(dpy, w, &protocols, &n);
-		if (stat != 0) {
-			/* success */
-			for (i = 0; i < n; i++) {
-				if (protocols[i] == take_focus_atom) {
-					ok = True;
-					break;
-				}
-			}
-			XFree(protocols);
-		}
-	}
-
-	return ok;
-}
-
 
 /*
  * GetWindowIdent
